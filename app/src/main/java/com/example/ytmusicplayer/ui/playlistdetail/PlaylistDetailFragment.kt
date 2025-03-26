@@ -1,6 +1,7 @@
 package com.example.ytmusicplayer.ui.playlist
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
@@ -26,6 +27,7 @@ import com.example.ytmusicplayer.PlaylistPlayerManager
 import com.example.ytmusicplayer.R
 import com.example.ytmusicplayer.database.PlaylistDatabase
 import com.example.ytmusicplayer.database.model.PlaylistItem
+import com.example.ytmusicplayer.notifications.showMediaNotification
 import com.example.ytmusicplayer.ui.playlistdetail.PlaylistItemAdapter
 import com.google.android.material.snackbar.BaseTransientBottomBar
 import com.google.android.material.snackbar.Snackbar
@@ -178,6 +180,7 @@ class PlaylistDetailFragment : Fragment() {
             recyclerView.postDelayed({
                 updateCurrentTrackInfo()
                 updatePlayPauseButton()
+                updateNotificationBanner(context)
             }, 300)
         }
     }
@@ -192,6 +195,7 @@ class PlaylistDetailFragment : Fragment() {
             if (files.isNotEmpty()) {
                 PlaylistPlayerManager.playPlaylist(requireContext(), files)
                 updatePlayPauseButton()
+                updateNotificationBanner(context)
                 recyclerView.postDelayed({ updateCurrentTrackInfo() }, 300)
             } else {
                 Toast.makeText(requireContext(), "No downloaded songs to play.", Toast.LENGTH_SHORT).show()
@@ -206,6 +210,7 @@ class PlaylistDetailFragment : Fragment() {
         }
 
         updatePlayPauseButton()
+        updateNotificationBanner(context)
     }
 
     private fun skipToNext() {
@@ -219,6 +224,7 @@ class PlaylistDetailFragment : Fragment() {
             recyclerView.postDelayed({
                 updateCurrentTrackInfo()
                 updatePlayPauseButton()
+                updateNotificationBanner(context)
             }, 300)
         } else {
             navigateToNextPlaylist()
@@ -236,6 +242,7 @@ class PlaylistDetailFragment : Fragment() {
             recyclerView.postDelayed({
                 updateCurrentTrackInfo()
                 updatePlayPauseButton()
+                updateNotificationBanner(context)
             }, 300)
         } else {
             // ✅ First track reached — go to previous playlist
@@ -290,6 +297,23 @@ class PlaylistDetailFragment : Fragment() {
                 .into(currentTrackImage)
         } else {
             currentTrackImage.setImageResource(R.drawable.ic_music_placeholder)
+        }
+    }
+
+    private fun updateNotificationBanner(context: Context?) {
+        val player = PlaylistPlayerManager.getPlayer()
+        val currentItem = player?.currentMediaItem
+        val title = currentItem?.mediaMetadata?.title?.toString() ?: "Unknown Title"
+        val artist = currentItem?.mediaMetadata?.artist?.toString() ?: "Unknown Artist"
+
+        context?.let {
+            showMediaNotification(
+                context = it,
+                isPlaying = player?.isPlaying == true,
+                title = title,
+                artist = artist,
+                mediaSession = PlaylistPlayerManager.mediaSessionCompat
+            )
         }
     }
 

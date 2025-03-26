@@ -1,12 +1,14 @@
 package com.example.ytmusicplayer
 
 import android.content.Context
+import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.ytmusicplayer.database.PlaylistDatabase
+import com.example.ytmusicplayer.notifications.showMediaNotification
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -17,11 +19,16 @@ object PlaylistPlayerManager {
     private var exoPlayer: ExoPlayer? = null
     private val listeners = mutableListOf<androidx.media3.common.Player.Listener>()
 
+    private var _mediaSessionCompat: MediaSessionCompat? = null
+    val mediaSessionCompat: MediaSessionCompat
+        get() = _mediaSessionCompat
+            ?: throw IllegalStateException("MediaSessionCompat not initialized. Call initialize(context) first.")
+
     var onPlaylistEnded: (() -> Unit)? = null
 
     fun initialize(context: Context) {
         if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(context.applicationContext).build() // ✅ use applicationContext here
+            exoPlayer = ExoPlayer.Builder(context.applicationContext).build()
 
             exoPlayer?.addListener(object : androidx.media3.common.Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
@@ -32,6 +39,12 @@ object PlaylistPlayerManager {
             })
 
             listeners.forEach { exoPlayer?.addListener(it) }
+
+            if (_mediaSessionCompat == null) {
+                _mediaSessionCompat = MediaSessionCompat(context, "YTMusicMediaSession").apply {
+                    isActive = true
+                }
+            }
         }
     }
 
@@ -50,6 +63,8 @@ object PlaylistPlayerManager {
     fun release() {
         exoPlayer?.release()
         exoPlayer = null
+        _mediaSessionCompat?.release()
+        _mediaSessionCompat = null
     }
 
     fun playPlaylist(context: Context, files: List<File>, startIndex: Int = 0) {
@@ -76,9 +91,27 @@ object PlaylistPlayerManager {
             }
 
             withContext(Dispatchers.Main) {
-                exoPlayer?.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
-                exoPlayer?.prepare()
-                exoPlayer?.play()
+                val player = exoPlayer ?: return@withContext
+
+                // 🔄 Add a one-time listener for metadata change
+                player.addListener(object : androidx.media3.common.Player.Listener {
+                    override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
+                        val title = mediaMetadata.title?.toString() ?: "Unknown Title"
+                        val artist = mediaMetadata.artist?.toString() ?: "Unknown Artist"
+                        showMediaNotification(
+                            context,
+                            player.isPlaying,
+                            title,
+                            artist,
+                            mediaSessionCompat
+                        )
+                        player.removeListener(this) // ✅ Remove after first update
+                    }
+                })
+
+                player.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
+                player.prepare()
+                player.play()
             }
         }
     }
