@@ -8,7 +8,7 @@ import com.example.ytmusicplayer.database.dao.PlaylistDao
 import com.example.ytmusicplayer.database.model.Playlist
 import com.example.ytmusicplayer.database.model.PlaylistItem
 
-@Database(entities = [Playlist::class, PlaylistItem::class], version = 4, exportSchema = false)
+@Database(entities = [Playlist::class, PlaylistItem::class], version = 5, exportSchema = false)
 abstract class PlaylistDatabase : RoomDatabase() {
     abstract fun playlistDao(): PlaylistDao
 
