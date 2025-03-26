@@ -46,7 +46,7 @@ Or:
 ## 📄 License
 
 ```text
-Copyright (c) [Your Name] 2025
+Copyright (c) [Samuel Yip Kah Yean] 2025
 
 This software is licensed for personal, non-commercial use only.
 
@@ -57,4 +57,4 @@ You are NOT permitted to:
 
 All rights are reserved by the author.
 
-For commercial licensing inquiries or permissions, please contact: [your@email.com]
+For commercial licensing inquiries or permissions, please contact: [kahyean.yip@gmail.com]
