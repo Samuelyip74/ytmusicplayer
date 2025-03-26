@@ -226,19 +226,43 @@ class PlaylistDetailFragment : Fragment() {
     }
 
     private fun skipToPrevious() {
-        PlaylistPlayerManager.getPlayer()?.apply {
-            if (hasPreviousMediaItem()) {
-                seekToPrevious()
-            } else {
-                seekTo(0)
-            }
-            play()
+        val player = PlaylistPlayerManager.getPlayer()
+
+        if (player == null || items.isEmpty()) return
+
+        if (player.hasPreviousMediaItem()) {
+            player.seekToPrevious()
+            player.play()
             recyclerView.postDelayed({
                 updateCurrentTrackInfo()
                 updatePlayPauseButton()
             }, 300)
+        } else {
+            // ✅ First track reached — go to previous playlist
+            lifecycleScope.launch {
+                val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
+                val allPlaylists = dao.getAllPlaylists().sortedBy { it.id }
+                val currentIndex = allPlaylists.indexOfFirst { it.id == playlistId }
+                val previous = allPlaylists.getOrNull(currentIndex - 1)
+
+                if (previous != null) {
+                    val bundle = Bundle().apply {
+                        putInt("playlistId", previous.id)
+                        putString("playlistName", previous.name)
+                    }
+
+                    val navOptions = NavOptions.Builder()
+                        .setPopUpTo(R.id.playlistDetailFragment, true) // ✅ Replace current fragment
+                        .build()
+
+                    findNavController().navigate(R.id.playlistDetailFragment, bundle, navOptions)
+                } else {
+                    Toast.makeText(requireContext(), "This is the first playlist.", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
+
 
     private fun updateCurrentTrackInfo() {
         val player = PlaylistPlayerManager.getPlayer() ?: return
