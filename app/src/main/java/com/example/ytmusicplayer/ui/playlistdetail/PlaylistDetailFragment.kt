@@ -17,6 +17,9 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
+import androidx.navigation.NavOptions
+import androidx.navigation.fragment.findNavController
+import androidx.navigation.navOptions
 import androidx.recyclerview.widget.*
 import com.bumptech.glide.Glide
 import com.example.ytmusicplayer.PlaylistPlayerManager
@@ -48,8 +51,7 @@ class PlaylistDetailFragment : Fragment() {
 
     private val playbackListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
-            buttonPlayPause.text = if (isPlaying) "⏸" else "▶"
-            if (isPlaying) updateCurrentTrackInfo()
+            updatePlayPauseButton()
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -66,9 +68,9 @@ class PlaylistDetailFragment : Fragment() {
         setHasOptionsMenu(true)
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
-    ): View = inflater.inflate(R.layout.fragment_playlist_detail, container, false)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+        return inflater.inflate(R.layout.fragment_playlist_detail, container, false)
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         recyclerView = view.findViewById(R.id.playlistItemRecyclerView)
@@ -88,23 +90,59 @@ class PlaylistDetailFragment : Fragment() {
             onDelete = { deleteItem(it) }
         )
 
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
         recyclerView.adapter = playlistItemAdapter
+        recyclerView.layoutManager = LinearLayoutManager(requireContext())
 
         playerView.player = PlaylistPlayerManager.getPlayer()
-
         buttonPlayPause.setOnClickListener { togglePlayPause() }
         buttonNext.setOnClickListener { skipToNext() }
         buttonPrev.setOnClickListener { skipToPrevious() }
 
         PlaylistPlayerManager.addListener(playbackListener)
 
+        PlaylistPlayerManager.onPlaylistEnded = {
+            navigateToNextPlaylist()
+        }
+
         setupItemTouchHelper()
         loadItems()
-
-        (activity as? AppCompatActivity)?.supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
+    private fun navigateToNextPlaylist() {
+        lifecycleScope.launch {
+            val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
+            val allPlaylists = dao.getAllPlaylists().sortedBy { it.id }
+            val currentIndex = allPlaylists.indexOfFirst { it.id == playlistId }
+            val next = allPlaylists.getOrNull(currentIndex + 1)
+
+            if (next != null) {
+                val bundle = Bundle().apply {
+                    putInt("playlistId", next.id)
+                    putString("playlistName", next.name)
+                }
+
+                val navOptions = NavOptions.Builder()
+                    .setPopUpTo(R.id.playlistDetailFragment, true) // ✅ Clear current from back stack
+                    .build()
+
+                findNavController().navigate(
+                    R.id.playlistDetailFragment,
+                    bundle,
+                    navOptions
+                )
+            } else {
+                Toast.makeText(requireContext(), "No more playlists to auto-play.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+
+    private fun updatePlayPauseButton() {
+        val isPlaying = PlaylistPlayerManager.getPlayer()?.isPlaying == true
+        buttonPlayPause.text = if (isPlaying) "⏸" else "▶"
+    }
+
+    @SuppressLint("NotifyDataSetChanged")
     private fun loadItems() {
         lifecycleScope.launch {
             items.clear()
@@ -112,20 +150,22 @@ class PlaylistDetailFragment : Fragment() {
             items.addAll(dao.getItemsForPlaylist(playlistId).sortedBy { it.position })
             playlistItemAdapter.notifyDataSetChanged()
 
-            // ✅ Auto-play all downloaded songs if available
             val files = items.mapNotNull { it.downloadedFilePath }
                 .map { File(it) }
                 .filter { it.exists() }
 
             if (files.isNotEmpty()) {
                 PlaylistPlayerManager.playPlaylist(requireContext(), files)
-                recyclerView.postDelayed({ updateCurrentTrackInfo() }, 300)
+                updateCurrentTrackInfo()
+
+                recyclerView.postDelayed({
+                    updatePlayPauseButton()
+                }, 300)
             } else {
                 Toast.makeText(requireContext(), "No downloaded songs to play.", Toast.LENGTH_SHORT).show()
             }
         }
     }
-
 
     private fun playFromItem(selectedItem: PlaylistItem) {
         val files = items.mapNotNull { it.downloadedFilePath }
@@ -135,13 +175,15 @@ class PlaylistDetailFragment : Fragment() {
         val startIndex = items.indexOfFirst { it.id == selectedItem.id }
         if (files.isNotEmpty() && startIndex >= 0) {
             PlaylistPlayerManager.playPlaylist(requireContext(), files, startIndex)
-            recyclerView.postDelayed({ updateCurrentTrackInfo() }, 300)
+            recyclerView.postDelayed({
+                updateCurrentTrackInfo()
+                updatePlayPauseButton()
+            }, 300)
         }
     }
 
     private fun togglePlayPause() {
         val player = PlaylistPlayerManager.getPlayer()
-
         if (player == null || player.currentMediaItemIndex == C.INDEX_UNSET) {
             val files = items.mapNotNull { it.downloadedFilePath }
                 .map { File(it) }
@@ -149,6 +191,7 @@ class PlaylistDetailFragment : Fragment() {
 
             if (files.isNotEmpty()) {
                 PlaylistPlayerManager.playPlaylist(requireContext(), files)
+                updatePlayPauseButton()
                 recyclerView.postDelayed({ updateCurrentTrackInfo() }, 300)
             } else {
                 Toast.makeText(requireContext(), "No downloaded songs to play.", Toast.LENGTH_SHORT).show()
@@ -161,12 +204,24 @@ class PlaylistDetailFragment : Fragment() {
         } else {
             player.play()
         }
+
+        updatePlayPauseButton()
     }
 
     private fun skipToNext() {
-        PlaylistPlayerManager.getPlayer()?.takeIf { it.hasNextMediaItem() }?.apply {
-            seekToNext()
-            recyclerView.postDelayed({ updateCurrentTrackInfo() }, 300)
+        val player = PlaylistPlayerManager.getPlayer()
+
+        if (player == null || items.isEmpty()) return
+
+        if (player.currentMediaItemIndex < player.mediaItemCount - 1) {
+            player.seekToNext()
+            player.play()
+            recyclerView.postDelayed({
+                updateCurrentTrackInfo()
+                updatePlayPauseButton()
+            }, 300)
+        } else {
+            navigateToNextPlaylist()
         }
     }
 
@@ -177,7 +232,11 @@ class PlaylistDetailFragment : Fragment() {
             } else {
                 seekTo(0)
             }
-            recyclerView.postDelayed({ updateCurrentTrackInfo() }, 300)
+            play()
+            recyclerView.postDelayed({
+                updateCurrentTrackInfo()
+                updatePlayPauseButton()
+            }, 300)
         }
     }
 
@@ -219,20 +278,9 @@ class PlaylistDetailFragment : Fragment() {
         }
     }
 
-    private fun persistItemOrder() {
-        lifecycleScope.launch {
-            val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
-            items.forEachIndexed { index, item ->
-                item.position = index
-                dao.updatePlaylistItem(item)
-            }
-        }
-    }
-
     private fun setupItemTouchHelper() {
         val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
-            ItemTouchHelper.UP or ItemTouchHelper.DOWN,
-            ItemTouchHelper.LEFT
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN, ItemTouchHelper.LEFT
         ) {
             override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
                 val from = vh.adapterPosition
@@ -244,21 +292,17 @@ class PlaylistDetailFragment : Fragment() {
                 return true
             }
 
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                val position = viewHolder.adapterPosition
+            override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) {
+                val position = vh.adapterPosition
                 val item = items[position]
+                val currentPath = PlaylistPlayerManager.getPlayer()?.currentMediaItem?.localConfiguration?.uri?.path
 
-                val currentPlayingPath = PlaylistPlayerManager.getPlayer()
-                    ?.currentMediaItem
-                    ?.localConfiguration?.uri?.path
-
-                if (item.downloadedFilePath == currentPlayingPath) {
-                    Toast.makeText(requireContext(), "Can't delete song that is currently playing", Toast.LENGTH_SHORT).show()
-                    playlistItemAdapter.notifyItemChanged(position) // 👈 reset the swiped item
+                if (item.downloadedFilePath == currentPath) {
+                    Toast.makeText(requireContext(), "Can't delete currently playing song", Toast.LENGTH_SHORT).show()
+                    playlistItemAdapter.notifyItemChanged(position)
                     return
                 }
 
-                // Proceed with delete if not playing
                 items.removeAt(position)
                 playlistItemAdapter.notifyItemRemoved(position)
 
@@ -267,25 +311,14 @@ class PlaylistDetailFragment : Fragment() {
                         items.add(position, item)
                         playlistItemAdapter.notifyItemInserted(position)
                     }
-                    .addCallback(object : BaseTransientBottomBar.BaseCallback<Snackbar>() {
+                    .addCallback(object : Snackbar.Callback() {
                         override fun onDismissed(snackbar: Snackbar?, event: Int) {
                             if (event != DISMISS_EVENT_ACTION) {
                                 lifecycleScope.launch {
                                     val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
                                     dao.deletePlaylistItem(item)
-
                                     item.downloadedFilePath?.let { path ->
-                                        val file = File(path)
-                                        if (file.exists()) {
-                                            val deleted = file.delete()
-                                            if (deleted) {
-                                                Toast.makeText(requireContext(), "Deleted file: ${file.name}", Toast.LENGTH_SHORT).show()
-                                                Log.d("PlaylistItem", "Deleted file: $path")
-                                            } else {
-                                                Toast.makeText(requireContext(), "Failed to delete file", Toast.LENGTH_SHORT).show()
-                                                Log.w("PlaylistItem", "Delete failed: $path")
-                                            }
-                                        }
+                                        File(path).takeIf { it.exists() }?.delete()
                                     }
                                 }
                             }
@@ -294,40 +327,37 @@ class PlaylistDetailFragment : Fragment() {
                     .show()
             }
 
-            override fun onChildDraw(
-                c: Canvas,
-                rv: RecyclerView,
-                vh: RecyclerView.ViewHolder,
-                dX: Float, dY: Float,
-                actionState: Int,
-                isCurrentlyActive: Boolean
-            ) {
-                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && dX < 0) {
+            override fun onChildDraw(c: Canvas, rv: RecyclerView, vh: RecyclerView.ViewHolder, dX: Float, dY: Float, state: Int, isActive: Boolean) {
+                if (state == ItemTouchHelper.ACTION_STATE_SWIPE && dX < 0) {
                     val itemView = vh.itemView
                     val background = ColorDrawable(Color.parseColor("#f44336"))
-                    background.setBounds(
-                        itemView.right + dX.toInt(), itemView.top,
-                        itemView.right, itemView.bottom
-                    )
+                    background.setBounds(itemView.right + dX.toInt(), itemView.top, itemView.right, itemView.bottom)
                     background.draw(c)
 
-                    val deleteIcon = ContextCompat.getDrawable(requireContext(), R.drawable.ic_delete)
-                    deleteIcon?.let {
-                        val iconMargin = (itemView.height - it.intrinsicHeight) / 2
-                        val iconTop = itemView.top + iconMargin
-                        val iconBottom = iconTop + it.intrinsicHeight
-                        val iconRight = itemView.right - iconMargin
-                        val iconLeft = iconRight - it.intrinsicWidth
-                        it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                    ContextCompat.getDrawable(requireContext(), R.drawable.ic_delete)?.let {
+                        val margin = (itemView.height - it.intrinsicHeight) / 2
+                        val top = itemView.top + margin
+                        val bottom = top + it.intrinsicHeight
+                        val right = itemView.right - margin
+                        val left = right - it.intrinsicWidth
+                        it.setBounds(left, top, right, bottom)
                         it.draw(c)
                     }
                 }
-
-                super.onChildDraw(c, rv, vh, dX, dY, actionState, isCurrentlyActive)
+                super.onChildDraw(c, rv, vh, dX, dY, state, isActive)
             }
         })
-
         itemTouchHelper.attachToRecyclerView(recyclerView)
+    }
+
+    private fun persistItemOrder() {
+        lifecycleScope.launch {
+            val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
+            items.forEachIndexed { index, item ->
+                item.position = index
+                dao.updatePlaylistItem(item)
+            }
+        }
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -336,7 +366,6 @@ class PlaylistDetailFragment : Fragment() {
                 requireActivity().onBackPressedDispatcher.onBackPressed()
                 true
             }
-
             else -> super.onOptionsItemSelected(item)
         }
     }
@@ -345,7 +374,7 @@ class PlaylistDetailFragment : Fragment() {
         super.onDestroyView()
         playerView.player = null
         PlaylistPlayerManager.removeListener(playbackListener)
-        (activity as? AppCompatActivity)?.supportActionBar?.setDisplayHomeAsUpEnabled(false)
+        PlaylistPlayerManager.onPlaylistEnded = null
     }
 
     override fun onDestroy() {
@@ -353,4 +382,5 @@ class PlaylistDetailFragment : Fragment() {
         PlaylistPlayerManager.release()
     }
 }
+
 

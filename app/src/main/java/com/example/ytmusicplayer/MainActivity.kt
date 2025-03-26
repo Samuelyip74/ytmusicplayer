@@ -15,6 +15,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // ✅ Force light mode
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
 
@@ -23,15 +24,22 @@ class MainActivity : AppCompatActivity() {
 
         val navView: BottomNavigationView = binding.navView
 
+        // ✅ Use the correct NavController from the NavHostFragment
         val navController = findNavController(R.id.nav_host_fragment_activity_main)
-        // Passing each menu ID as a set of Ids because each
-        // menu should be considered as top level destinations.
+
+        // ✅ Only bottom nav destinations are considered top-level
         val appBarConfiguration = AppBarConfiguration(
-            setOf(
-                R.id.navigation_search, R.id.navigation_playlists,
-            )
+            setOf(R.id.navigation_search, R.id.navigation_playlists)
         )
+
+        // ✅ Proper ActionBar setup with correct navController
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
+    }
+
+    // ✅ Correct override for back arrow (up button)
+    override fun onSupportNavigateUp(): Boolean {
+        val navController = findNavController(R.id.nav_host_fragment_activity_main)
+        return navController.navigateUp() || super.onSupportNavigateUp()
     }
 }

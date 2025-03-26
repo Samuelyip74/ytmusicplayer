@@ -10,15 +10,21 @@ import androidx.media3.exoplayer.ExoPlayer
 import java.io.File
 
 object PlaylistPlayerManager {
-
     private var exoPlayer: ExoPlayer? = null
-    private val listeners = mutableSetOf<Player.Listener>()
+    private var currentIndex = 0
+
+    var onPlaylistEnded: (() -> Unit)? = null // ✅ Auto-play next callback
 
     fun initialize(context: Context) {
         if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(context.applicationContext).build()
-            // Re-register all listeners if they exist
-            listeners.forEach { exoPlayer?.addListener(it) }
+            exoPlayer = ExoPlayer.Builder(context).build()
+            exoPlayer?.addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(state: Int) {
+                    if (state == Player.STATE_ENDED) {
+                        onPlaylistEnded?.invoke()
+                    }
+                }
+            })
         }
     }
 
@@ -27,40 +33,24 @@ object PlaylistPlayerManager {
         exoPlayer = null
     }
 
-    fun getPlayer(): ExoPlayer? = exoPlayer
-
     fun playPlaylist(context: Context, files: List<File>, startIndex: Int = 0) {
         if (files.isEmpty()) return
 
         initialize(context)
 
-        val mediaItems = files.map { file ->
-            MediaItem.Builder()
-                .setUri(file.toUri())
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(file.nameWithoutExtension.replace("_", " "))
-                        .build()
-                )
-                .build()
-        }
-
-        exoPlayer?.apply {
-            clearMediaItems() // optional: clear existing items
-            setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
-            prepare()
-            play()
-        }
+        val mediaItems = files.map { MediaItem.fromUri(it.toUri()) }
+        exoPlayer?.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
+        exoPlayer?.prepare()
+        exoPlayer?.play()
     }
 
-    // ✅ Add listener support
+    fun getPlayer(): ExoPlayer? = exoPlayer
+
     fun addListener(listener: Player.Listener) {
-        listeners.add(listener)
         exoPlayer?.addListener(listener)
     }
 
     fun removeListener(listener: Player.Listener) {
-        listeners.remove(listener)
         exoPlayer?.removeListener(listener)
     }
 }

@@ -39,6 +39,13 @@
         <argument
             android:name="playlistName"
             app:argType="string" />
+
+        <!-- ✅ Self-navigation action -->
+        <action
+            android:id="@+id/action_playlistDetailFragment_self"
+            app:destination="@id/playlistDetailFragment" />
     </fragment>
+
+
 
 </navigation>
