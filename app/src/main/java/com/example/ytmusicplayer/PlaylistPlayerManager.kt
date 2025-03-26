@@ -5,28 +5,47 @@ import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
-import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.example.ytmusicplayer.database.PlaylistDatabase
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 object PlaylistPlayerManager {
     private var exoPlayer: ExoPlayer? = null
-    private var currentIndex = 0
+    private val listeners = mutableListOf<androidx.media3.common.Player.Listener>()
 
-    var onPlaylistEnded: (() -> Unit)? = null // ✅ Auto-play next callback
+    var onPlaylistEnded: (() -> Unit)? = null
 
     fun initialize(context: Context) {
         if (exoPlayer == null) {
-            exoPlayer = ExoPlayer.Builder(context).build()
-            exoPlayer?.addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(state: Int) {
-                    if (state == Player.STATE_ENDED) {
+            exoPlayer = ExoPlayer.Builder(context.applicationContext).build() // ✅ use applicationContext here
+
+            exoPlayer?.addListener(object : androidx.media3.common.Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == ExoPlayer.STATE_ENDED) {
                         onPlaylistEnded?.invoke()
                     }
                 }
             })
+
+            listeners.forEach { exoPlayer?.addListener(it) }
         }
     }
+
+    fun addListener(listener: androidx.media3.common.Player.Listener) {
+        listeners.add(listener)
+        exoPlayer?.addListener(listener)
+    }
+
+    fun removeListener(listener: androidx.media3.common.Player.Listener) {
+        listeners.remove(listener)
+        exoPlayer?.removeListener(listener)
+    }
+
+    fun getPlayer(): ExoPlayer? = exoPlayer
 
     fun release() {
         exoPlayer?.release()
@@ -38,29 +57,29 @@ object PlaylistPlayerManager {
 
         initialize(context)
 
-        val mediaItems = files.mapIndexed { index, file ->
-            MediaItem.Builder()
-                .setUri(file.toUri())
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(file.nameWithoutExtension.replace("_", " "))
+        CoroutineScope(Dispatchers.IO).launch {
+            val dao = PlaylistDatabase.getDatabase(context.applicationContext).playlistDao()
+            val allItems = dao.getAllPlaylistItems()
+
+            val mediaItems = files.mapNotNull { file ->
+                val matched = allItems.find { it.downloadedFilePath == file.absolutePath }
+                matched?.let {
+                    MediaItem.Builder()
+                        .setUri(file.toUri())
+                        .setMediaMetadata(
+                            MediaMetadata.Builder()
+                                .setTitle(it.title)
+                                .build()
+                        )
                         .build()
-                )
-                .build()
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                exoPlayer?.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
+                exoPlayer?.prepare()
+                exoPlayer?.play()
+            }
         }
-
-        exoPlayer?.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
-        exoPlayer?.prepare()
-        exoPlayer?.play()
-    }
-
-    fun getPlayer(): ExoPlayer? = exoPlayer
-
-    fun addListener(listener: Player.Listener) {
-        exoPlayer?.addListener(listener)
-    }
-
-    fun removeListener(listener: Player.Listener) {
-        exoPlayer?.removeListener(listener)
     }
 }
