@@ -1,0 +1,60 @@
+# 🎵 YT Music Player
+
+**YT Music Player** is an Android app that lets you play YouTube songs with full playlist support, background playback, and smooth media controls. It’s designed to give you a simple, focused YouTube music experience — without the distractions of video.
+
+---
+
+## ✨ Features
+
+- 🔊 Background audio playback of YouTube content
+- 📂 Playlist creation and management
+- 🔁 Seamless track switching and playback controls
+- ➕ Add songs from YouTube via search or URL
+- 🧹 Swipe to delete playlist items with undo
+- 🎚️ Drag-and-drop to reorder tracks in playlists
+- 🎧 ExoPlayer-powered smooth playback
+- 📥 Download and store YouTube audio for offline listening
+- 🔍 Search YouTube directly in-app
+- 💡 Clean UI with fragment-based navigation
+
+---
+
+## 🛠️ Built With
+
+- **Kotlin**
+- **ExoPlayer** – for media playback
+- **NewPipe Extractor** – to extract YouTube streams
+- **Room Database** – for offline playlist storage
+- **Jetpack Components** – ViewModel, LiveData, Navigation, and more
+
+---
+
+## 🚀 Installation
+
+> This app is not available on the Play Store.
+
+To install:
+1. Clone this repository
+2. Open in **Android Studio** (recommended: 2024.2.2 - Ladybug)
+3. Build and run on an Android device (API 24+)
+
+Or:
+- Download the latest `.apk` from the [Releases](#) section (if available)
+
+---
+
+## 📄 License
+
+```text
+Copyright (c) [Your Name] 2025
+
+This software is licensed for personal, non-commercial use only.
+
+You are NOT permitted to:
+- Use this software for any commercial purposes.
+- Modify, adapt, reverse-engineer, or create derivative works based on this software.
+- Distribute, sublicense, or share this software in any form.
+
+All rights are reserved by the author.
+
+For commercial licensing inquiries or permissions, please contact: [your@email.com]
