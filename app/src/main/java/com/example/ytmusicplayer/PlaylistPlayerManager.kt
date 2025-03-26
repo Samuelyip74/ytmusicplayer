@@ -36,6 +36,14 @@ object PlaylistPlayerManager {
                         onPlaylistEnded?.invoke()
                     }
                 }
+
+                override fun onIsPlayingChanged(isPlaying: Boolean) {
+                    updateNotification(context)
+                }
+
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    updateNotification(context)
+                }
             })
 
             listeners.forEach { exoPlayer?.addListener(it) }
@@ -114,5 +122,21 @@ object PlaylistPlayerManager {
                 player.play()
             }
         }
+    }
+
+    private fun updateNotification(context: Context) {
+        val player = exoPlayer ?: return
+        val currentItem = player.currentMediaItem?.mediaMetadata
+
+        val title = currentItem?.title?.toString() ?: "Unknown Title"
+        val artist = currentItem?.artist?.toString() ?: "Unknown Artist"
+
+        showMediaNotification(
+            context,
+            player.isPlaying,
+            title,
+            artist,
+            mediaSessionCompat
+        )
     }
 }
