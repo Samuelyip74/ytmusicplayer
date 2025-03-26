@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/mobile_navigation"
+    app:startDestination="@+id/navigation_search">
+
+    <!-- Bottom Nav Tab 1: Search -->
+    <fragment
+        android:id="@+id/navigation_search"
+        android:name="com.example.ytmusicplayer.ui.search.SearchFragment"
+        android:label="@string/title_search"
+        tools:layout="@layout/fragment_search" />
+
+    <!-- Bottom Nav Tab 2: Playlists -->
+    <fragment
+        android:id="@+id/navigation_playlists"
+        android:name="com.example.ytmusicplayer.ui.playlists.PlaylistFragment"
+        android:label="@string/title_playlists"
+        tools:layout="@layout/fragment_playlist">
+
+        <!-- ✅ Child destination: PlaylistDetailFragment -->
+        <action
+            android:id="@+id/action_playlistFragment_to_playlistDetailFragment"
+            app:destination="@id/playlistDetailFragment" />
+    </fragment>
+
+    <!-- ✅ Playlist detail fragment (NOT a bottom nav tab!) -->
+    <fragment
+        android:id="@+id/playlistDetailFragment"
+        android:name="com.example.ytmusicplayer.ui.playlist.PlaylistDetailFragment"
+        android:label="Music Player"
+        tools:layout="@layout/fragment_playlist_detail">
+
+        <argument
+            android:name="playlistId"
+            app:argType="integer" />
+
+        <argument
+            android:name="playlistName"
+            app:argType="string" />
+    </fragment>
+
+</navigation>

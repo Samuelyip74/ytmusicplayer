@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/playlistDetailLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="12dp"
+    android:orientation="vertical">
+
+    <!-- Playlist Title -->
+    <TextView
+        android:id="@+id/playlistTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Playlist Title"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        android:textSize="18sp"
+        android:paddingBottom="4dp" />
+
+    <!-- Currently Playing Title -->
+    <TextView
+        android:id="@+id/currentTrackTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Playing: -"
+        android:textColor="@color/white"
+        android:textSize="14sp"
+        android:textStyle="italic"
+        android:paddingBottom="8dp" />
+
+    <ImageView
+        android:id="@+id/currentTrackImage"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:scaleType="centerCrop"
+        android:layout_marginBottom="12dp"
+        android:src="@drawable/ic_music_video" />
+
+    <!-- ExoPlayer View -->
+    <androidx.media3.ui.PlayerView
+        android:id="@+id/playerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Playback Controls -->
+    <LinearLayout
+        android:id="@+id/playerControls"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:layout_marginBottom="12dp">
+
+        <Button
+            android:id="@+id/buttonPrev"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/black"
+            android:text="⏮" />
+
+        <Button
+            android:id="@+id/buttonPlayPause"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/black"
+            android:text="▶" />
+
+        <Button
+            android:id="@+id/buttonNext"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/black"
+            android:text="⏭" />
+    </LinearLayout>
+
+    <!-- Playlist Item List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/playlistItemRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginBottom="32dp"
+        android:scrollbars="vertical" />
+
+</LinearLayout>
