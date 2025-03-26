@@ -22,7 +22,7 @@
         android:id="@+id/currentTrackTitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Playing: -"
+        android:text=" "
         android:textColor="@color/white"
         android:textSize="14sp"
         android:textStyle="italic"
@@ -34,7 +34,8 @@
         android:layout_height="200dp"
         android:scaleType="centerCrop"
         android:layout_marginBottom="12dp"
-        android:src="@drawable/ic_music_video" />
+        android:background="@color/white"
+        android:src="@drawable/ic_music_placeholder" />
 
     <!-- ExoPlayer View -->
     <androidx.media3.ui.PlayerView

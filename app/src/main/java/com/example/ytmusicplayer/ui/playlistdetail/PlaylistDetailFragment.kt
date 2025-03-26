@@ -1,12 +1,16 @@
 package com.example.ytmusicplayer.ui.playlist
 
 import android.annotation.SuppressLint
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
 import android.view.*
 import android.widget.*
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.C
@@ -107,8 +111,21 @@ class PlaylistDetailFragment : Fragment() {
             val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
             items.addAll(dao.getItemsForPlaylist(playlistId).sortedBy { it.position })
             playlistItemAdapter.notifyDataSetChanged()
+
+            // ✅ Auto-play all downloaded songs if available
+            val files = items.mapNotNull { it.downloadedFilePath }
+                .map { File(it) }
+                .filter { it.exists() }
+
+            if (files.isNotEmpty()) {
+                PlaylistPlayerManager.playPlaylist(requireContext(), files)
+                recyclerView.postDelayed({ updateCurrentTrackInfo() }, 300)
+            } else {
+                Toast.makeText(requireContext(), "No downloaded songs to play.", Toast.LENGTH_SHORT).show()
+            }
         }
     }
+
 
     private fun playFromItem(selectedItem: PlaylistItem) {
         val files = items.mapNotNull { it.downloadedFilePath }
@@ -173,7 +190,7 @@ class PlaylistDetailFragment : Fragment() {
                 ?.removeSuffix(".mp3")
                 ?.replace("_", " ")
 
-        currentTrackTitle.text = "Currently Playing: ${title ?: "-"}"
+        currentTrackTitle.text = "Now Playing: ${title ?: "-"}"
 
         val filePath = mediaItem.localConfiguration?.uri?.path
         val matchedItem = items.find {
@@ -186,10 +203,10 @@ class PlaylistDetailFragment : Fragment() {
         if (!thumbnailUrl.isNullOrEmpty()) {
             Glide.with(requireContext())
                 .load(thumbnailUrl)
-                .error(R.drawable.ic_music_video)
+                .error(R.drawable.ic_music_placeholder)
                 .into(currentTrackImage)
         } else {
-            currentTrackImage.setImageResource(R.drawable.ic_music_video)
+            currentTrackImage.setImageResource(R.drawable.ic_music_placeholder)
         }
     }
 
@@ -213,19 +230,15 @@ class PlaylistDetailFragment : Fragment() {
     }
 
     private fun setupItemTouchHelper() {
-        val callback = object : ItemTouchHelper.SimpleCallback(
+        val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
             ItemTouchHelper.UP or ItemTouchHelper.DOWN,
             ItemTouchHelper.LEFT
         ) {
-            override fun onMove(
-                recyclerView: RecyclerView,
-                viewHolder: RecyclerView.ViewHolder,
-                target: RecyclerView.ViewHolder
-            ): Boolean {
-                val from = viewHolder.adapterPosition
+            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
+                val from = vh.adapterPosition
                 val to = target.adapterPosition
-                val movedItem = items.removeAt(from)
-                items.add(to, movedItem)
+                val moved = items.removeAt(from)
+                items.add(to, moved)
                 playlistItemAdapter.notifyItemMoved(from, to)
                 persistItemOrder()
                 return true
@@ -235,6 +248,17 @@ class PlaylistDetailFragment : Fragment() {
                 val position = viewHolder.adapterPosition
                 val item = items[position]
 
+                val currentPlayingPath = PlaylistPlayerManager.getPlayer()
+                    ?.currentMediaItem
+                    ?.localConfiguration?.uri?.path
+
+                if (item.downloadedFilePath == currentPlayingPath) {
+                    Toast.makeText(requireContext(), "Can't delete song that is currently playing", Toast.LENGTH_SHORT).show()
+                    playlistItemAdapter.notifyItemChanged(position) // 👈 reset the swiped item
+                    return
+                }
+
+                // Proceed with delete if not playing
                 items.removeAt(position)
                 playlistItemAdapter.notifyItemRemoved(position)
 
@@ -249,15 +273,60 @@ class PlaylistDetailFragment : Fragment() {
                                 lifecycleScope.launch {
                                     val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
                                     dao.deletePlaylistItem(item)
+
+                                    item.downloadedFilePath?.let { path ->
+                                        val file = File(path)
+                                        if (file.exists()) {
+                                            val deleted = file.delete()
+                                            if (deleted) {
+                                                Toast.makeText(requireContext(), "Deleted file: ${file.name}", Toast.LENGTH_SHORT).show()
+                                                Log.d("PlaylistItem", "Deleted file: $path")
+                                            } else {
+                                                Toast.makeText(requireContext(), "Failed to delete file", Toast.LENGTH_SHORT).show()
+                                                Log.w("PlaylistItem", "Delete failed: $path")
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
                     })
                     .show()
             }
-        }
 
-        val itemTouchHelper = ItemTouchHelper(callback)
+            override fun onChildDraw(
+                c: Canvas,
+                rv: RecyclerView,
+                vh: RecyclerView.ViewHolder,
+                dX: Float, dY: Float,
+                actionState: Int,
+                isCurrentlyActive: Boolean
+            ) {
+                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE && dX < 0) {
+                    val itemView = vh.itemView
+                    val background = ColorDrawable(Color.parseColor("#f44336"))
+                    background.setBounds(
+                        itemView.right + dX.toInt(), itemView.top,
+                        itemView.right, itemView.bottom
+                    )
+                    background.draw(c)
+
+                    val deleteIcon = ContextCompat.getDrawable(requireContext(), R.drawable.ic_delete)
+                    deleteIcon?.let {
+                        val iconMargin = (itemView.height - it.intrinsicHeight) / 2
+                        val iconTop = itemView.top + iconMargin
+                        val iconBottom = iconTop + it.intrinsicHeight
+                        val iconRight = itemView.right - iconMargin
+                        val iconLeft = iconRight - it.intrinsicWidth
+                        it.setBounds(iconLeft, iconTop, iconRight, iconBottom)
+                        it.draw(c)
+                    }
+                }
+
+                super.onChildDraw(c, rv, vh, dX, dY, actionState, isCurrentlyActive)
+            }
+        })
+
         itemTouchHelper.attachToRecyclerView(recyclerView)
     }
 
@@ -284,3 +353,4 @@ class PlaylistDetailFragment : Fragment() {
         PlaylistPlayerManager.release()
     }
 }
+
