@@ -38,7 +38,17 @@ object PlaylistPlayerManager {
 
         initialize(context)
 
-        val mediaItems = files.map { MediaItem.fromUri(it.toUri()) }
+        val mediaItems = files.mapIndexed { index, file ->
+            MediaItem.Builder()
+                .setUri(file.toUri())
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(file.nameWithoutExtension.replace("_", " "))
+                        .build()
+                )
+                .build()
+        }
+
         exoPlayer?.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
         exoPlayer?.prepare()
         exoPlayer?.play()
