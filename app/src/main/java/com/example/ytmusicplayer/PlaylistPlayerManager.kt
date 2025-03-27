@@ -51,6 +51,7 @@ object PlaylistPlayerManager {
                         .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, title.toString())
                         .build()
 
+
                     _mediaSessionCompat?.setMetadata(metadataCompat)
                 }
             })
