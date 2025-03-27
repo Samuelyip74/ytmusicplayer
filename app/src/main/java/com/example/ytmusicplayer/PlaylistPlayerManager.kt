@@ -22,7 +22,8 @@ import java.io.File
 
 object PlaylistPlayerManager {
     private var exoPlayer: ExoPlayer? = null
-    private var currentPlaylistId: Int? = -1
+    var currentPlaylistId: Int? = null
+        private set
     private val listeners = mutableListOf<androidx.media3.common.Player.Listener>()
 
     private var _mediaSessionCompat: MediaSessionCompat? = null
@@ -74,13 +75,28 @@ object PlaylistPlayerManager {
                         }
 
                         override fun onSkipToNext() {
-                            exoPlayer?.seekToNext()
-                            exoPlayer?.play()
+                            val player = exoPlayer ?: return
+                            if (player.currentMediaItemIndex < player.mediaItemCount - 1) {
+                                player.seekToNext()
+                                player.play()
+                            } else {
+                                // We're at the end of the current playlist, navigate to next
+                                currentPlaylistId?.let { currentId ->
+                                    autoPlayNextPlaylist(context, currentId)
+                                }
+                            }
                         }
 
                         override fun onSkipToPrevious() {
-                            exoPlayer?.seekToPrevious()
-                            exoPlayer?.play()
+                            val player = exoPlayer ?: return
+                            if (player.hasPreviousMediaItem()) {
+                                player.seekToPrevious()
+                                player.play()
+                            } else {
+                                currentPlaylistId?.let { currentId ->
+                                    autoPlayPreviousPlaylist(context, currentId)
+                                }
+                            }
                         }
                     })
                     isActive = true
@@ -108,7 +124,7 @@ object PlaylistPlayerManager {
         _mediaSessionCompat = null
     }
 
-    fun getCurrentPlaylistId(): Int? = currentPlaylistId
+    //fun getCurrentPlaylistId(): Int? = currentPlaylistId
 
     fun playPlaylist(context: Context, files: List<File>, playlistId:Int ?= 0, startIndex: Int = 0) {
         if (files.isEmpty()) return
@@ -217,5 +233,44 @@ object PlaylistPlayerManager {
 
         _mediaSessionCompat?.setPlaybackState(playbackState)
     }
+
+    private fun autoPlayNextPlaylist(context: Context, currentId: Int) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val dao = PlaylistDatabase.getDatabase(context).playlistDao()
+            val allPlaylists = dao.getAllPlaylists().sortedBy { it.id }
+            val currentIndex = allPlaylists.indexOfFirst { it.id == currentId }
+            val next = allPlaylists.getOrNull(currentIndex + 1)
+
+            next?.let { playlist ->
+                val items = dao.getItemsForPlaylist(playlist.id).sortedBy { it.position }
+                val files = items.mapNotNull { it.downloadedFilePath }
+                    .map { File(it) }.filter { it.exists() }
+
+                withContext(Dispatchers.Main) {
+                    playPlaylist(context, files, 0, playlist.id)
+                }
+            }
+        }
+    }
+
+    private fun autoPlayPreviousPlaylist(context: Context, currentId: Int) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val dao = PlaylistDatabase.getDatabase(context).playlistDao()
+            val allPlaylists = dao.getAllPlaylists().sortedBy { it.id }
+            val currentIndex = allPlaylists.indexOfFirst { it.id == currentId }
+            val previous = allPlaylists.getOrNull(currentIndex - 1)
+
+            previous?.let { playlist ->
+                val items = dao.getItemsForPlaylist(playlist.id).sortedBy { it.position }
+                val files = items.mapNotNull { it.downloadedFilePath }
+                    .map { File(it) }.filter { it.exists() }
+
+                withContext(Dispatchers.Main) {
+                    playPlaylist(context, files, 0, playlist.id)
+                }
+            }
+        }
+    }
+
 
 }
