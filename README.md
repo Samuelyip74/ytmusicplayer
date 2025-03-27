@@ -42,10 +42,11 @@ To install:
 ---
 ## 📦 Releases
 
-| Version | Date       | Notes                                                    |
-|---------|------------|----------------------------------------------------------|
-| v1.0.1  | 2025-03-26 | 🎉 Initial release with full core features               |
-| v1.0.2  | 2025-03-27 | 🔧 Planned: MediaSession Bluetooth controls, improved UI |
+| Version | Date       | Notes                                           |
+|---------|------------|-------------------------------------------------|
+| v1.0.1  | 2025-03-26 | 🎉 Initial release with full core features      |
+| v1.0.2  | 2025-03-27 | 🔧 MediaSession Bluetooth controls, improved UI |
+| v1.0.3  | 2025-03-27 | 🔧 Included background service                  |
 
 Check the [Releases](#) tab for `.zip` downloads.
 
