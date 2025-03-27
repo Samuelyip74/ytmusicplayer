@@ -44,7 +44,6 @@ object PlaylistPlayerManager {
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    //updateNotification(context, playlistId)
                     updateMediaSessionPlaybackState(isPlaying)
                 }
 
@@ -179,7 +178,7 @@ object PlaylistPlayerManager {
     }
 
 
-    private fun updateNotification(context: Context, playlistId:Int ?= -1) {
+    private fun updateNotification(context: Context) {
         val player = exoPlayer ?: return
         val currentItem = player.currentMediaItem?.mediaMetadata
 
