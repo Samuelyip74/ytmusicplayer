@@ -3,10 +3,13 @@ package com.example.ytmusicplayer.notifications
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.example.ytmusicplayer.PlaylistPlayerManager
 
 class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+        val playlistId = intent?.getIntExtra("playlistId", -1) ?: -1
+        Log.d("PlaylistID - Notifiion","Playlist ID is $playlistId")
         val action = intent?.action ?: return
 
         val player = PlaylistPlayerManager.getPlayer() ?: return
@@ -33,7 +36,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
             player.isPlaying,
             title, // TODO: Replace with current title
             title,     // TODO: Replace with current artist
-            PlaylistPlayerManager.mediaSessionCompat
+            PlaylistPlayerManager.mediaSessionCompat,
+            playlistId
         )
     }
 

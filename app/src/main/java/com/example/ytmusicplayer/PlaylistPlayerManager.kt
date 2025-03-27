@@ -3,6 +3,7 @@ package com.example.ytmusicplayer
 import android.content.Context
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
+import android.util.Log
 import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -18,6 +19,7 @@ import java.io.File
 
 object PlaylistPlayerManager {
     private var exoPlayer: ExoPlayer? = null
+    private var currentPlaylistId: Int? = null
     private val listeners = mutableListOf<androidx.media3.common.Player.Listener>()
 
     private var _mediaSessionCompat: MediaSessionCompat? = null
@@ -39,7 +41,7 @@ object PlaylistPlayerManager {
                 }
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    updateNotification(context)
+                    //updateNotification(context, playlistId)
                     updateMediaSessionPlaybackState(isPlaying)
                 }
 
@@ -104,8 +106,12 @@ object PlaylistPlayerManager {
         _mediaSessionCompat = null
     }
 
-    fun playPlaylist(context: Context, files: List<File>, startIndex: Int = 0) {
+    fun getCurrentPlaylistId(): Int? = currentPlaylistId
+
+    fun playPlaylist(context: Context, files: List<File>, playlistId:Int ?= 0, startIndex: Int = 0) {
         if (files.isEmpty()) return
+
+        currentPlaylistId = playlistId  // 🔐 Save it here
 
         initialize(context)
 
@@ -129,7 +135,7 @@ object PlaylistPlayerManager {
 
             withContext(Dispatchers.Main) {
                 val player = exoPlayer ?: return@withContext
-
+                Log.d("PlaylistID - PLManager","Playlist ID is $playlistId")
                 // 🔄 Add a one-time listener for metadata change
                 player.addListener(object : androidx.media3.common.Player.Listener {
                     override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
@@ -140,7 +146,8 @@ object PlaylistPlayerManager {
                             player.isPlaying,
                             title,
                             artist,
-                            mediaSessionCompat
+                            mediaSessionCompat,
+                            playlistId
                         )
                         player.removeListener(this) // ✅ Remove after first update
                     }
@@ -153,7 +160,7 @@ object PlaylistPlayerManager {
         }
     }
 
-    private fun updateNotification(context: Context) {
+    private fun updateNotification(context: Context, playlistId:Int ?= -1) {
         val player = exoPlayer ?: return
         val currentItem = player.currentMediaItem?.mediaMetadata
 
@@ -165,7 +172,8 @@ object PlaylistPlayerManager {
             player.isPlaying,
             title,
             artist,
-            mediaSessionCompat
+            mediaSessionCompat,
+            currentPlaylistId
         )
     }
 

@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationCompat
 import androidx.media.session.MediaButtonReceiver
+import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 
@@ -52,6 +53,8 @@ class MainActivity : AppCompatActivity() {
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
+
+        handleIntent()
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -76,6 +79,19 @@ class MainActivity : AppCompatActivity() {
         mediaSession = MediaSessionCompat(context, "YTMusicSession")
         mediaSession!!.isActive = true
         mediaSession?.setMediaButtonReceiver(null)
+    }
+
+    private fun handleIntent(){
+        val playlistId = intent?.getIntExtra("playlistId", -1) ?: -1
+        Log.d("PlaylistID - Main","Playlist ID is $playlistId")
+        if (playlistId != -1) {
+            val bundle = Bundle().apply {
+                putInt("playlistId", playlistId)
+            }
+
+            val navController = findNavController(R.id.nav_host_fragment_activity_main)
+            navController.navigate(R.id.playlistDetailFragment, bundle)
+        }
     }
 }
 

@@ -67,6 +67,7 @@ class PlaylistDetailFragment : Fragment() {
             playlistId = it.getInt("playlistId")
             playlistName = it.getString("playlistName").orEmpty()
         }
+        Log.d("PlaylistID - PLFDetail","Playlist ID is $playlistId")
         setHasOptionsMenu(true)
     }
 
@@ -157,7 +158,7 @@ class PlaylistDetailFragment : Fragment() {
                 .filter { it.exists() }
 
             if (files.isNotEmpty()) {
-                PlaylistPlayerManager.playPlaylist(requireContext(), files)
+                PlaylistPlayerManager.playPlaylist(requireContext(), files, playlistId)
                 updateCurrentTrackInfo()
 
                 recyclerView.postDelayed({
@@ -176,11 +177,11 @@ class PlaylistDetailFragment : Fragment() {
 
         val startIndex = items.indexOfFirst { it.id == selectedItem.id }
         if (files.isNotEmpty() && startIndex >= 0) {
-            PlaylistPlayerManager.playPlaylist(requireContext(), files, startIndex)
+            PlaylistPlayerManager.playPlaylist(requireContext(), files, playlistId, startIndex)
             recyclerView.postDelayed({
                 updateCurrentTrackInfo()
                 updatePlayPauseButton()
-                updateNotificationBanner(context)
+                updateNotificationBanner(context, playlistId)
             }, 300)
         }
     }
@@ -193,9 +194,9 @@ class PlaylistDetailFragment : Fragment() {
                 .filter { it.exists() }
 
             if (files.isNotEmpty()) {
-                PlaylistPlayerManager.playPlaylist(requireContext(), files)
+                PlaylistPlayerManager.playPlaylist(requireContext(), files, playlistId)
                 updatePlayPauseButton()
-                updateNotificationBanner(context)
+                updateNotificationBanner(context, playlistId)
                 recyclerView.postDelayed({ updateCurrentTrackInfo() }, 300)
             } else {
                 Toast.makeText(requireContext(), "No downloaded songs to play.", Toast.LENGTH_SHORT).show()
@@ -210,7 +211,7 @@ class PlaylistDetailFragment : Fragment() {
         }
 
         updatePlayPauseButton()
-        updateNotificationBanner(context)
+        updateNotificationBanner(context, playlistId)
     }
 
     private fun skipToNext() {
@@ -224,7 +225,7 @@ class PlaylistDetailFragment : Fragment() {
             recyclerView.postDelayed({
                 updateCurrentTrackInfo()
                 updatePlayPauseButton()
-                updateNotificationBanner(context)
+                updateNotificationBanner(context, playlistId)
             }, 300)
         } else {
             navigateToNextPlaylist()
@@ -242,7 +243,7 @@ class PlaylistDetailFragment : Fragment() {
             recyclerView.postDelayed({
                 updateCurrentTrackInfo()
                 updatePlayPauseButton()
-                updateNotificationBanner(context)
+                updateNotificationBanner(context, playlistId)
             }, 300)
         } else {
             // ✅ First track reached — go to previous playlist
@@ -300,7 +301,7 @@ class PlaylistDetailFragment : Fragment() {
         }
     }
 
-    private fun updateNotificationBanner(context: Context?) {
+    private fun updateNotificationBanner(context: Context?, playlistId: Int) {
         val player = PlaylistPlayerManager.getPlayer()
         val currentItem = player?.currentMediaItem
         val title = currentItem?.mediaMetadata?.title?.toString() ?: "Unknown Title"
@@ -312,7 +313,8 @@ class PlaylistDetailFragment : Fragment() {
                 isPlaying = player?.isPlaying == true,
                 title = title,
                 artist = artist,
-                mediaSession = PlaylistPlayerManager.mediaSessionCompat
+                mediaSession = PlaylistPlayerManager.mediaSessionCompat,
+                playlistId
             )
         }
     }

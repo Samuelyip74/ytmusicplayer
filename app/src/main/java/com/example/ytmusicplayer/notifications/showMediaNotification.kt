@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
+import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
 import com.example.ytmusicplayer.MainActivity
 import com.example.ytmusicplayer.R
@@ -16,7 +17,8 @@ fun showMediaNotification(
     isPlaying: Boolean,
     title: String,
     artist: String,
-    mediaSession: MediaSessionCompat
+    mediaSession: MediaSessionCompat,
+    playlistId: Int ?= -1
 ) {
     val playPauseIntent = Intent(
         context,
@@ -40,6 +42,7 @@ fun showMediaNotification(
         PendingIntent.getBroadcast(
             context, 2,
             Intent(context, NotificationActionReceiver::class.java).apply {
+                putExtra("playlistId", playlistId)
                 action = NotificationActionReceiver.ACTION_NEXT
             },
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
@@ -51,22 +54,29 @@ fun showMediaNotification(
         PendingIntent.getBroadcast(
             context, 3,
             Intent(context, NotificationActionReceiver::class.java).apply {
+                putExtra("playlistId", playlistId)
                 action = NotificationActionReceiver.ACTION_PREVIOUS
             },
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
     ).build()
 
+    val intent = Intent(context, MainActivity::class.java).apply {
+        putExtra("playlistId", playlistId)
+        Log.d("PlaylistID - showMedia","Playlist ID is $playlistId")
+    }
+
+    val pendingIntent = PendingIntent.getActivity(
+        context,
+        0,
+        intent,
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+    )
+
     val notification = NotificationCompat.Builder(context, "yt_music_playback_channel")
         .setContentTitle(title)
         .setSmallIcon(R.drawable.ic_music_note)
-        .setContentIntent(
-            PendingIntent.getActivity(
-                context, 0,
-                Intent(context, MainActivity::class.java),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-        )
+        .setContentIntent(pendingIntent)
         .setStyle(
             androidx.media.app.NotificationCompat.MediaStyle()
                 .setMediaSession(mediaSession.sessionToken)
