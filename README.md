@@ -58,3 +58,6 @@ You are NOT permitted to:
 All rights are reserved by the author.
 
 For commercial licensing inquiries or permissions, please contact: [kahyean.yip@gmail.com]
+
+
+Release 1.0.1 published on 27 March 2025
