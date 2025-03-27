@@ -33,15 +33,17 @@ class MainActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
 
+        // ✅ 1. Initialize view binding first
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
+        // ✅ 2. Setup session and player
         createNotificationChannel()
         setupMediaSession(this)
 
         PlaylistPlayerManager.initialize(this)
-        //PlaylistPlayerManager.mediaSessionCompat = mediaSession // 👈 if needed globally
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
-
+        // ✅ 3. Navigation setup
         val navController = findNavController(R.id.nav_host_fragment_activity_main)
         val navView: BottomNavigationView = binding.navView
 
@@ -73,6 +75,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupMediaSession(context: Context) {
         mediaSession = MediaSessionCompat(context, "YTMusicSession")
         mediaSession!!.isActive = true
+        mediaSession?.setMediaButtonReceiver(null)
     }
 }
 

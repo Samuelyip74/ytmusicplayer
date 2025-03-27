@@ -2,6 +2,7 @@ package com.example.ytmusicplayer
 
 import android.content.Context
 import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -39,10 +40,18 @@ object PlaylistPlayerManager {
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     updateNotification(context)
+                    updateMediaSessionPlaybackState(isPlaying)
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     updateNotification(context)
+                    val title = mediaItem?.mediaMetadata?.title ?: "Unknown Title"
+
+                    val metadataCompat = android.support.v4.media.MediaMetadataCompat.Builder()
+                        .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, title.toString())
+                        .build()
+
+                    _mediaSessionCompat?.setMetadata(metadataCompat)
                 }
             })
 
@@ -50,6 +59,25 @@ object PlaylistPlayerManager {
 
             if (_mediaSessionCompat == null) {
                 _mediaSessionCompat = MediaSessionCompat(context, "YTMusicMediaSession").apply {
+                    setCallback(object : MediaSessionCompat.Callback() {
+                        override fun onPlay() {
+                            exoPlayer?.play()
+                        }
+
+                        override fun onPause() {
+                            exoPlayer?.pause()
+                        }
+
+                        override fun onSkipToNext() {
+                            exoPlayer?.seekToNext()
+                            exoPlayer?.play()
+                        }
+
+                        override fun onSkipToPrevious() {
+                            exoPlayer?.seekToPrevious()
+                            exoPlayer?.play()
+                        }
+                    })
                     isActive = true
                 }
             }
@@ -139,4 +167,26 @@ object PlaylistPlayerManager {
             mediaSessionCompat
         )
     }
+
+    private fun updateMediaSessionPlaybackState(isPlaying: Boolean) {
+        val state = if (isPlaying) {
+            PlaybackStateCompat.STATE_PLAYING
+        } else {
+            PlaybackStateCompat.STATE_PAUSED
+        }
+
+        val playbackState = PlaybackStateCompat.Builder()
+            .setActions(
+                PlaybackStateCompat.ACTION_PLAY or
+                        PlaybackStateCompat.ACTION_PAUSE or
+                        PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+            )
+            .setState(state, exoPlayer?.currentPosition ?: 0L, 1f)
+            .build()
+
+        _mediaSessionCompat?.setPlaybackState(playbackState)
+    }
+
 }
