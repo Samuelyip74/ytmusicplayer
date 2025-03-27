@@ -13,6 +13,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.media.session.MediaButtonReceiver
 import androidx.media3.common.util.Log
 import androidx.media3.common.util.UnstableApi
@@ -22,7 +23,9 @@ import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import com.example.ytmusicplayer.database.PlaylistDatabase
 import com.example.ytmusicplayer.databinding.ActivityMainBinding
+import kotlinx.coroutines.launch
 
 @UnstableApi
 class MainActivity : AppCompatActivity() {
@@ -84,14 +87,20 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleIntent(){
         val playlistId = intent?.getIntExtra("playlistId", -1) ?: -1
-        Log.d("PlaylistID - Main","Playlist ID is $playlistId")
         if (playlistId != -1) {
-            val bundle = Bundle().apply {
-                putInt("playlistId", playlistId)
+            // Fetch playlist name from DB if needed
+            lifecycleScope.launch {
+                val dao = PlaylistDatabase.getDatabase(this@MainActivity).playlistDao()
+                val playlist = dao.getAllPlaylists().find { it.id == playlistId }
+                playlist?.let {
+                    val bundle = Bundle().apply {
+                        putInt("playlistId", it.id)
+                        putString("playlistName", it.name)
+                    }
+                    findNavController(R.id.nav_host_fragment_activity_main)
+                        .navigate(R.id.playlistDetailFragment, bundle)
+                }
             }
-
-            val navController = findNavController(R.id.nav_host_fragment_activity_main)
-            navController.navigate(R.id.playlistDetailFragment, bundle)
         }
     }
 }

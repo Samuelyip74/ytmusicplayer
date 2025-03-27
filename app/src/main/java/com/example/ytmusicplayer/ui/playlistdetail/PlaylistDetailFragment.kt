@@ -158,7 +158,11 @@ class PlaylistDetailFragment : Fragment() {
                 .filter { it.exists() }
 
             if (files.isNotEmpty()) {
-                PlaylistPlayerManager.playPlaylist(requireContext(), files, playlistId)
+
+                if (PlaylistPlayerManager.getPlayer()?.isPlaying != true) {
+                    PlaylistPlayerManager.playPlaylist(requireContext(), files, playlistId)
+                }
+
                 updateCurrentTrackInfo()
 
                 recyclerView.postDelayed({
