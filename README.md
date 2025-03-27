@@ -38,8 +38,16 @@ To install:
 2. Open in **Android Studio** (recommended: 2024.2.2 - Ladybug)
 3. Build and run on an Android device (API 24+)
 
-Or:
-- Download the latest `.apk` from the [Releases](#) section (if available)
+
+---
+## 📦 Releases
+
+| Version | Date       | Notes                                      |
+|---------|------------|--------------------------------------------|
+| v1.0.1  | 2025-03-26 | 🎉 Initial release with full core features |
+|         | *TBD*      | 🔧                                         |
+
+Check the [Releases](#) tab for `.apk` downloads and release notes.
 
 ---
 
@@ -59,10 +67,4 @@ All rights are reserved by the author.
 
 For commercial licensing inquiries or permissions, please contact: [kahyean.yip@gmail.com]
 
----
 
-## 📄 Official Releases
-
-```text
-
-Release 1.0.1 published on 27 March 2025
