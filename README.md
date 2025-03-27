@@ -45,7 +45,7 @@ To install:
 | Version | Date       | Notes                                                    |
 |---------|------------|----------------------------------------------------------|
 | v1.0.1  | 2025-03-26 | 🎉 Initial release with full core features               |
-|         | *TBD*      | 🔧 Planned: MediaSession Bluetooth controls, improved UI |
+| v1.0.2  | 2025-03-27 | 🔧 Planned: MediaSession Bluetooth controls, improved UI |
 
 Check the [Releases](#) tab for `.zip` downloads.
 
