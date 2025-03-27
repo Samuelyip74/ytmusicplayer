@@ -42,12 +42,13 @@ To install:
 ---
 ## 📦 Releases
 
-| Version | Date       | Notes                                      |
-|---------|------------|--------------------------------------------|
-| v1.0.1  | 2025-03-26 | 🎉 Initial release with full core features |
-|         | *TBD*      | 🔧                                         |
+| Version | Date       | Notes                                                    |
+|---------|------------|----------------------------------------------------------|
+| v1.0.1  | 2025-03-26 | 🎉 Initial release with full core features               |
+|         | *TBD*      | 🔧 Planned: MediaSession Bluetooth controls, improved UI |
+|---------|------------|----------------------------------------------------------|
 
-Check the [Releases](#) tab for `.apk` downloads and release notes.
+Check the [Releases](#) tab for `.zip` downloads.
 
 ---
 
@@ -68,3 +69,9 @@ All rights are reserved by the author.
 For commercial licensing inquiries or permissions, please contact: [kahyean.yip@gmail.com]
 
 
+
+## 📄 Official Releases
+
+```text
+
+Release 1.0.1 published on 27 March 2025
