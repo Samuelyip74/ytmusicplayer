@@ -119,26 +119,33 @@ class PlaylistDetailFragment : Fragment() {
             val next = allPlaylists.getOrNull(currentIndex + 1)
 
             if (next != null) {
-                val bundle = Bundle().apply {
-                    putInt("playlistId", next.id)
-                    putString("playlistName", next.name)
+                val items = dao.getItemsForPlaylist(next.id).sortedBy { it.position }
+
+                val files = items.mapNotNull { it.downloadedFilePath }
+                    .map { File(it) }
+                    .filter { it.exists() }
+
+                if (files.isNotEmpty()) {
+                    PlaylistPlayerManager.playPlaylist(requireContext(), files, startIndex = 0, playlistId = next.id)
+
+                    val bundle = Bundle().apply {
+                        putInt("playlistId", next.id)
+                        putString("playlistName", next.name)
+                    }
+
+                    val navOptions = NavOptions.Builder()
+                        .setPopUpTo(R.id.playlistDetailFragment, true)
+                        .build()
+
+                    findNavController().navigate(R.id.playlistDetailFragment, bundle, navOptions)
+                } else {
+                    Toast.makeText(requireContext(), "No songs in the next playlist.", Toast.LENGTH_SHORT).show()
                 }
-
-                val navOptions = NavOptions.Builder()
-                    .setPopUpTo(R.id.playlistDetailFragment, true) // ✅ Clear current from back stack
-                    .build()
-
-                findNavController().navigate(
-                    R.id.playlistDetailFragment,
-                    bundle,
-                    navOptions
-                )
             } else {
-                Toast.makeText(requireContext(), "No more playlists to auto-play.", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), "This is the last playlist.", Toast.LENGTH_SHORT).show()
             }
         }
     }
-
 
     private fun updatePlayPauseButton() {
         val isPlaying = PlaylistPlayerManager.getPlayer()?.isPlaying == true
@@ -249,8 +256,8 @@ class PlaylistDetailFragment : Fragment() {
                 updatePlayPauseButton()
                 updateNotificationBanner(context, playlistId)
             }, 300)
-        } else {
-            // ✅ First track reached — go to previous playlist
+        }
+        else {
             lifecycleScope.launch {
                 val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
                 val allPlaylists = dao.getAllPlaylists().sortedBy { it.id }
@@ -258,21 +265,34 @@ class PlaylistDetailFragment : Fragment() {
                 val previous = allPlaylists.getOrNull(currentIndex - 1)
 
                 if (previous != null) {
-                    val bundle = Bundle().apply {
-                        putInt("playlistId", previous.id)
-                        putString("playlistName", previous.name)
+                    val items = dao.getItemsForPlaylist(previous.id).sortedBy { it.position }
+
+                    val files = items.mapNotNull { it.downloadedFilePath }
+                        .map { File(it) }
+                        .filter { it.exists() }
+
+                    if (files.isNotEmpty()) {
+                        PlaylistPlayerManager.playPlaylist(requireContext(), files, startIndex = 0, playlistId = previous.id)
+
+                        val bundle = Bundle().apply {
+                            putInt("playlistId", previous.id)
+                            putString("playlistName", previous.name)
+                        }
+
+                        val navOptions = NavOptions.Builder()
+                            .setPopUpTo(R.id.playlistDetailFragment, true)
+                            .build()
+
+                        findNavController().navigate(R.id.playlistDetailFragment, bundle, navOptions)
+                    } else {
+                        Toast.makeText(requireContext(), "No songs in the previous playlist.", Toast.LENGTH_SHORT).show()
                     }
-
-                    val navOptions = NavOptions.Builder()
-                        .setPopUpTo(R.id.playlistDetailFragment, true) // ✅ Replace current fragment
-                        .build()
-
-                    findNavController().navigate(R.id.playlistDetailFragment, bundle, navOptions)
                 } else {
                     Toast.makeText(requireContext(), "This is the first playlist.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
+
     }
 
 

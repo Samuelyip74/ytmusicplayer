@@ -22,7 +22,7 @@ import java.io.File
 
 object PlaylistPlayerManager {
     private var exoPlayer: ExoPlayer? = null
-    private var currentPlaylistId: Int? = null
+    private var currentPlaylistId: Int? = -1
     private val listeners = mutableListOf<androidx.media3.common.Player.Listener>()
 
     private var _mediaSessionCompat: MediaSessionCompat? = null
