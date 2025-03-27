@@ -69,9 +69,10 @@ class MainActivity : AppCompatActivity() {
                 "YT Music Playback",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Controls for music playback"
+                description = "YT music background playback"
             }
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
         }
     }
 

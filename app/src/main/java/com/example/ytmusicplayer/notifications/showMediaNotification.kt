@@ -1,5 +1,6 @@
 package com.example.ytmusicplayer.notifications
 
+import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -19,7 +20,7 @@ fun showMediaNotification(
     artist: String,
     mediaSession: MediaSessionCompat,
     playlistId: Int ?= -1
-) {
+) : Notification {
     val playPauseIntent = Intent(
         context,
         NotificationActionReceiver::class.java
@@ -89,6 +90,13 @@ fun showMediaNotification(
         .setOngoing(isPlaying)
         .build()
 
-    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-    notificationManager.notify(1, notification)
+    if (context is android.app.Service) {
+        //context.startForeground(1, notification)
+    } else {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(1, notification)
+    }
+
+    return notification
+
 }

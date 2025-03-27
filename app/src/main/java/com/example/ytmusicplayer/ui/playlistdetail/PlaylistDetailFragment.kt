@@ -429,7 +429,7 @@ class PlaylistDetailFragment : Fragment() {
 
     override fun onDestroy() {
         super.onDestroy()
-        PlaylistPlayerManager.release()
+        //PlaylistPlayerManager.release()
     }
 }
 

@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.example.ytmusicplayer.PlaylistPlayerManager
+import com.example.ytmusicplayer.services.MediaPlaybackService
 
 class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
@@ -13,6 +14,9 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val action = intent?.action ?: return
 
         val player = PlaylistPlayerManager.getPlayer() ?: return
+
+        val serviceIntent = Intent(context, MediaPlaybackService::class.java)
+        context.startService(serviceIntent)
 
         when (action) {
             ACTION_PLAY -> player.play()

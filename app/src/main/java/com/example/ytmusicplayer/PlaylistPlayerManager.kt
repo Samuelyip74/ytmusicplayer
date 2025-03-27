@@ -1,9 +1,11 @@
 package com.example.ytmusicplayer
 
 import android.content.Context
+import android.content.Intent
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -11,6 +13,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.ytmusicplayer.database.PlaylistDatabase
 import com.example.ytmusicplayer.notifications.showMediaNotification
+import com.example.ytmusicplayer.services.MediaPlaybackService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -115,6 +118,13 @@ object PlaylistPlayerManager {
 
         initialize(context)
 
+        val startIntent = Intent(context, MediaPlaybackService::class.java).apply {
+            putExtra("playlistId", playlistId)
+            // putExtra("playlistName", playlistName)
+        }
+
+        ContextCompat.startForegroundService(context, startIntent)
+
         CoroutineScope(Dispatchers.IO).launch {
             val dao = PlaylistDatabase.getDatabase(context.applicationContext).playlistDao()
             val allItems = dao.getAllPlaylistItems()
@@ -155,6 +165,14 @@ object PlaylistPlayerManager {
 
                 player.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
                 player.prepare()
+
+                // Start background service before playing
+                ContextCompat.startForegroundService(
+                    context,
+                    Intent(context, MediaPlaybackService::class.java)
+                )
+
+
                 player.play()
             }
         }
