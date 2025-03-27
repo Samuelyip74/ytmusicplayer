@@ -177,6 +177,8 @@ object PlaylistPlayerManager {
         )
     }
 
+
+
     private fun updateMediaSessionPlaybackState(isPlaying: Boolean) {
         val state = if (isPlaying) {
             PlaybackStateCompat.STATE_PLAYING
