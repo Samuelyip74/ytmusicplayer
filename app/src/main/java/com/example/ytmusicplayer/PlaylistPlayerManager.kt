@@ -160,6 +160,7 @@ object PlaylistPlayerManager {
         }
     }
 
+
     private fun updateNotification(context: Context, playlistId:Int ?= -1) {
         val player = exoPlayer ?: return
         val currentItem = player.currentMediaItem?.mediaMetadata
