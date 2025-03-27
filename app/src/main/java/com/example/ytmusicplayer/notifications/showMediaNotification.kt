@@ -64,7 +64,7 @@ fun showMediaNotification(
 
     val intent = Intent(context, MainActivity::class.java).apply {
         putExtra("playlistId", playlistId)
-        Log.d("PlaylistID - showMedia","Playlist ID is $playlistId")
+
     }
 
     val pendingIntent = PendingIntent.getActivity(

@@ -67,7 +67,7 @@ class PlaylistDetailFragment : Fragment() {
             playlistId = it.getInt("playlistId")
             playlistName = it.getString("playlistName").orEmpty()
         }
-        Log.d("PlaylistID - PLFDetail","Playlist ID is $playlistId")
+
         setHasOptionsMenu(true)
     }
 

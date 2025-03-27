@@ -10,7 +10,7 @@ import com.example.ytmusicplayer.services.MediaPlaybackService
 class NotificationActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         val playlistId = intent?.getIntExtra("playlistId", -1) ?: -1
-        Log.d("PlaylistID - Notifiion","Playlist ID is $playlistId")
+
         val action = intent?.action ?: return
 
         val player = PlaylistPlayerManager.getPlayer() ?: return

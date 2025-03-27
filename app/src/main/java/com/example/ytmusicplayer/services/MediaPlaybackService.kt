@@ -14,7 +14,7 @@ class MediaPlaybackService : Service() {
 
         // ✅ This is crucial to set up MediaSession and ExoPlayer
         PlaylistPlayerManager.initialize(this)
-        Log.d("MediaPlaybackService", "Service created")
+
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -37,7 +37,7 @@ class MediaPlaybackService : Service() {
 
         // ✅ Required to keep service alive in background
         startForeground(1, notification)
-        Log.d("MediaPlaybackService", "Service started")
+
         return START_STICKY
     }
 
@@ -45,6 +45,6 @@ class MediaPlaybackService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        Log.d("MediaPlaybackService", "Task removed - service still alive?")
+        //Log.d("MediaPlaybackService", "Task removed - service still alive?")
     }
 }

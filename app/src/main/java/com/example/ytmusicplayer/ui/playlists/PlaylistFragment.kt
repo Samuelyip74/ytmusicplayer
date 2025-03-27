@@ -6,6 +6,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.util.Log
 import android.view.*
 import android.widget.EditText
 import android.widget.TextView
@@ -176,7 +177,7 @@ class PlaylistFragment : Fragment() {
                                                     if (file.exists()) {
                                                         val deleted = file.delete()
                                                         val msg = if (deleted) "Deleted file: ${file.name}" else "Failed to delete file"
-                                                        println(msg) // or use Log.d(...)
+                                                        //Log.d("Delete file","Message: $msg")
                                                     }
                                                 }
                                             }

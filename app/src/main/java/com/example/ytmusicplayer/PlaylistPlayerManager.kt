@@ -144,7 +144,7 @@ object PlaylistPlayerManager {
 
             withContext(Dispatchers.Main) {
                 val player = exoPlayer ?: return@withContext
-                Log.d("PlaylistID - PLManager","Playlist ID is $playlistId")
+
                 // 🔄 Add a one-time listener for metadata change
                 player.addListener(object : androidx.media3.common.Player.Listener {
                     override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
