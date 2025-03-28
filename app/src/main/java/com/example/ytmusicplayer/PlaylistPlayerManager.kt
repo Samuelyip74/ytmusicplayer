@@ -174,6 +174,7 @@ object PlaylistPlayerManager {
                             mediaSessionCompat,
                             playlistId
                         )
+
                         player.removeListener(this) // ✅ Remove after first update
                     }
                 })
