@@ -178,7 +178,10 @@ object PlaylistPlayerManager {
                     }
                 })
 
-                player.setMediaItems(mediaItems, startIndex, C.TIME_UNSET)
+                // ✅ Ensure startIndex is within bounds
+                val safeIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
+
+                player.setMediaItems(mediaItems, safeIndex, C.TIME_UNSET)
                 player.prepare()
 
                 // Start background service before playing
