@@ -2,6 +2,9 @@ package com.example.ytmusicplayer
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.Log
@@ -20,10 +23,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
+
 object PlaylistPlayerManager {
     private var exoPlayer: ExoPlayer? = null
+    private var audioManager: AudioManager? = null
+    private var audioFocusRequest: AudioFocusRequest? = null
+
     var currentPlaylistId: Int? = null
         private set
+
     private val listeners = mutableListOf<androidx.media3.common.Player.Listener>()
 
     private var _mediaSessionCompat: MediaSessionCompat? = null
@@ -56,7 +64,6 @@ object PlaylistPlayerManager {
                         .putString(android.support.v4.media.MediaMetadataCompat.METADATA_KEY_TITLE, title.toString())
                         .build()
 
-
                     _mediaSessionCompat?.setMetadata(metadataCompat)
                 }
             })
@@ -80,10 +87,7 @@ object PlaylistPlayerManager {
                                 player.seekToNext()
                                 player.play()
                             } else {
-                                // We're at the end of the current playlist, navigate to next
-                                currentPlaylistId?.let { currentId ->
-                                    autoPlayNextPlaylist(context, currentId)
-                                }
+                                currentPlaylistId?.let { autoPlayNextPlaylist(context, it) }
                             }
                         }
 
@@ -93,9 +97,7 @@ object PlaylistPlayerManager {
                                 player.seekToPrevious()
                                 player.play()
                             } else {
-                                currentPlaylistId?.let { currentId ->
-                                    autoPlayPreviousPlaylist(context, currentId)
-                                }
+                                currentPlaylistId?.let { autoPlayPreviousPlaylist(context, it) }
                             }
                         }
                     })
@@ -122,22 +124,20 @@ object PlaylistPlayerManager {
         exoPlayer = null
         _mediaSessionCompat?.release()
         _mediaSessionCompat = null
+        abandonAudioFocus()
     }
 
-    //fun getCurrentPlaylistId(): Int? = currentPlaylistId
-
-    fun playPlaylist(context: Context, files: List<File>, playlistId:Int ?= 0, startIndex: Int = 0) {
+    fun playPlaylist(context: Context, files: List<File>, playlistId: Int? = 0, startIndex: Int = 0) {
         if (files.isEmpty()) return
 
-        currentPlaylistId = playlistId  // 🔐 Save it here
-
+        currentPlaylistId = playlistId
         initialize(context)
+        initializeAudioFocus(context)
 
-        val startIntent = Intent(context, MediaPlaybackService::class.java).apply {
-            putExtra("playlistId", playlistId)
-            // putExtra("playlistName", playlistName)
-        }
+        val hasFocus = requestAudioFocus()
+        if (!hasFocus) return
 
+        val startIntent = Intent(context, MediaPlaybackService::class.java)
         ContextCompat.startForegroundService(context, startIntent)
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -149,54 +149,57 @@ object PlaylistPlayerManager {
                 matched?.let {
                     MediaItem.Builder()
                         .setUri(file.toUri())
-                        .setMediaMetadata(
-                            MediaMetadata.Builder()
-                                .setTitle(it.title)
-                                .build()
-                        )
+                        .setMediaMetadata(MediaMetadata.Builder().setTitle(it.title).build())
                         .build()
                 }
             }
 
             withContext(Dispatchers.Main) {
                 val player = exoPlayer ?: return@withContext
-
-                // 🔄 Add a one-time listener for metadata change
-                player.addListener(object : androidx.media3.common.Player.Listener {
-                    override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
-                        val title = mediaMetadata.title?.toString() ?: "Unknown Title"
-                        val artist = mediaMetadata.artist?.toString() ?: "Unknown Artist"
-                        showMediaNotification(
-                            context,
-                            player.isPlaying,
-                            title,
-                            artist,
-                            mediaSessionCompat,
-                            playlistId
-                        )
-
-                        player.removeListener(this) // ✅ Remove after first update
-                    }
-                })
-
-                // ✅ Ensure startIndex is within bounds
                 val safeIndex = startIndex.coerceIn(0, mediaItems.lastIndex)
-
                 player.setMediaItems(mediaItems, safeIndex, C.TIME_UNSET)
                 player.prepare()
-
-                // Start background service before playing
-                ContextCompat.startForegroundService(
-                    context,
-                    Intent(context, MediaPlaybackService::class.java)
-                )
-
-
                 player.play()
             }
         }
     }
 
+    private fun initializeAudioFocus(context: Context) {
+        audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+            )
+            .setAcceptsDelayedFocusGain(true)
+            .setOnAudioFocusChangeListener { focusChange ->
+                when (focusChange) {
+                    AudioManager.AUDIOFOCUS_GAIN -> exoPlayer?.playWhenReady = true
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> exoPlayer?.volume = 0.2f
+                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> exoPlayer?.pause()
+                    AudioManager.AUDIOFOCUS_LOSS -> {
+                        exoPlayer?.pause()
+                        abandonAudioFocus()
+                    }
+                }
+            }
+            .build()
+        audioFocusRequest = focusRequest
+    }
+
+    private fun requestAudioFocus(): Boolean {
+        return audioFocusRequest?.let {
+            audioManager?.requestAudioFocus(it) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        } ?: false
+    }
+
+    private fun abandonAudioFocus() {
+        audioFocusRequest?.let {
+            audioManager?.abandonAudioFocusRequest(it)
+        }
+    }
 
     private fun updateNotification(context: Context) {
         val player = exoPlayer ?: return
@@ -215,15 +218,8 @@ object PlaylistPlayerManager {
         )
     }
 
-
-
     private fun updateMediaSessionPlaybackState(isPlaying: Boolean) {
-        val state = if (isPlaying) {
-            PlaybackStateCompat.STATE_PLAYING
-        } else {
-            PlaybackStateCompat.STATE_PAUSED
-        }
-
+        val state = if (isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val playbackState = PlaybackStateCompat.Builder()
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or
@@ -234,7 +230,6 @@ object PlaylistPlayerManager {
             )
             .setState(state, exoPlayer?.currentPosition ?: 0L, 1f)
             .build()
-
         _mediaSessionCompat?.setPlaybackState(playbackState)
     }
 
@@ -247,11 +242,9 @@ object PlaylistPlayerManager {
 
             next?.let { playlist ->
                 val items = dao.getItemsForPlaylist(playlist.id).sortedBy { it.position }
-                val files = items.mapNotNull { it.downloadedFilePath }
-                    .map { File(it) }.filter { it.exists() }
-
+                val files = items.mapNotNull { it.downloadedFilePath }.map { File(it) }.filter { it.exists() }
                 withContext(Dispatchers.Main) {
-                    playPlaylist(context, files, 0, playlist.id)
+                    playPlaylist(context, files, playlist.id)
                 }
             }
         }
@@ -266,15 +259,11 @@ object PlaylistPlayerManager {
 
             previous?.let { playlist ->
                 val items = dao.getItemsForPlaylist(playlist.id).sortedBy { it.position }
-                val files = items.mapNotNull { it.downloadedFilePath }
-                    .map { File(it) }.filter { it.exists() }
-
+                val files = items.mapNotNull { it.downloadedFilePath }.map { File(it) }.filter { it.exists() }
                 withContext(Dispatchers.Main) {
-                    playPlaylist(context, files, 0, playlist.id)
+                    playPlaylist(context, files, playlist.id)
                 }
             }
         }
     }
-
-
 }
