@@ -39,7 +39,7 @@
             android:name=".services.MediaPlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback"
-            tools:ignore="ForegroundServicePermission" />
+            />
     </application>
 
 </manifest>
