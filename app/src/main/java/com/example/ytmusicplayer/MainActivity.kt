@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.support.v4.media.session.MediaSessionCompat
@@ -13,6 +14,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media.session.MediaButtonReceiver
 import androidx.media3.common.util.Log
@@ -25,6 +27,7 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.example.ytmusicplayer.database.PlaylistDatabase
 import com.example.ytmusicplayer.databinding.ActivityMainBinding
+import com.example.ytmusicplayer.services.MediaPlaybackService
 import kotlinx.coroutines.launch
 
 @UnstableApi
@@ -46,6 +49,10 @@ class MainActivity : AppCompatActivity() {
         setupMediaSession(this)
 
         PlaylistPlayerManager.initialize(this)
+
+        // Start background media service
+        val intent = Intent(this, MediaPlaybackService::class.java)
+        ContextCompat.startForegroundService(this, intent)
 
         // ✅ 3. Navigation setup
         val navController = findNavController(R.id.nav_host_fragment_activity_main)

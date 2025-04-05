@@ -74,6 +74,14 @@ fun showMediaNotification(
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
     )
 
+    val dismissIntent = Intent(context, NotificationDismissedReceiver::class.java)
+    val deletePendingIntent = PendingIntent.getBroadcast(
+        context,
+        4,
+        dismissIntent,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+
     val notification = NotificationCompat.Builder(context, "yt_music_playback_channel")
         .setContentTitle(title)
         .setSmallIcon(R.drawable.ic_music_note)
@@ -86,6 +94,7 @@ fun showMediaNotification(
         .addAction(prevAction)
         .addAction(playPauseAction)
         .addAction(nextAction)
+        .setDeleteIntent(deletePendingIntent)
         .setPriority(NotificationCompat.PRIORITY_LOW)
         .setOngoing(isPlaying)
         .build()

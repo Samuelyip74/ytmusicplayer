@@ -137,8 +137,8 @@ object PlaylistPlayerManager {
         val hasFocus = requestAudioFocus()
         if (!hasFocus) return
 
-        val startIntent = Intent(context, MediaPlaybackService::class.java)
-        ContextCompat.startForegroundService(context, startIntent)
+//        val startIntent = Intent(context, MediaPlaybackService::class.java)
+//        ContextCompat.startForegroundService(context, startIntent)
 
         CoroutineScope(Dispatchers.IO).launch {
             val dao = PlaylistDatabase.getDatabase(context.applicationContext).playlistDao()

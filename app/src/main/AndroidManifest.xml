@@ -35,6 +35,8 @@
             android:name=".notifications.NotificationActionReceiver"
             android:exported="true">
         </receiver>
+        <receiver android:name=".notifications.NotificationDismissedReceiver"
+            android:exported="true" />
         <service
             android:name=".services.MediaPlaybackService"
             android:exported="false"
