@@ -343,6 +343,7 @@ class PlaylistDetailFragment : Fragment() {
         }
     }
 
+    @SuppressLint("NotifyDataSetChanged")
     private fun deleteItem(item: PlaylistItem) {
         lifecycleScope.launch {
             val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
@@ -434,6 +435,7 @@ class PlaylistDetailFragment : Fragment() {
         }
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             android.R.id.home -> {

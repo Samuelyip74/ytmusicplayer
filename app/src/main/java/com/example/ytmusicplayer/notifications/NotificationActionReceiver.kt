@@ -40,6 +40,15 @@ class NotificationActionReceiver : BroadcastReceiver() {
                     navigateToPreviousPlaylist(context)
                 }
             }
+
+            ACTION_FAST_FORWARD -> {
+                val newPos = player.currentPosition + 10_000L
+                player.seekTo(newPos.coerceAtMost(player.duration))
+            }
+            ACTION_REWIND -> {
+                val newPos = player.currentPosition - 10_000L
+                player.seekTo(newPos.coerceAtLeast(0))
+            }
         }
 
         val currentItem = player.currentMediaItem
@@ -59,6 +68,8 @@ class NotificationActionReceiver : BroadcastReceiver() {
         const val ACTION_PAUSE = "com.example.ytmusicplayer.ACTION_PAUSE"
         const val ACTION_NEXT = "com.example.ytmusicplayer.ACTION_NEXT"
         const val ACTION_PREVIOUS = "com.example.ytmusicplayer.ACTION_PREVIOUS"
+        const val ACTION_FAST_FORWARD = "com.example.ytmusicplayer.ACTION_FAST_FORWARD"
+        const val ACTION_REWIND = "com.example.ytmusicplayer.ACTION_REWIND"
     }
 
     private fun navigateToNextPlaylist(context: Context) {

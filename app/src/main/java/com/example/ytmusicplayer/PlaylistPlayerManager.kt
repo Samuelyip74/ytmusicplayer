@@ -160,6 +160,7 @@ object PlaylistPlayerManager {
                 player.setMediaItems(mediaItems, safeIndex, C.TIME_UNSET)
                 player.prepare()
                 player.play()
+                updateNotification(context) // Optional fallback
             }
         }
     }
@@ -207,7 +208,6 @@ object PlaylistPlayerManager {
 
         val title = currentItem?.title?.toString() ?: "Unknown Title"
         val artist = currentItem?.artist?.toString() ?: "Unknown Artist"
-
         showMediaNotification(
             context,
             player.isPlaying,
@@ -223,10 +223,12 @@ object PlaylistPlayerManager {
         val playbackState = PlaybackStateCompat.Builder()
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or
-                        PlaybackStateCompat.ACTION_PAUSE or
-                        PlaybackStateCompat.ACTION_PLAY_PAUSE or
-                        PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
-                        PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+                PlaybackStateCompat.ACTION_PAUSE or
+                PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
+                PlaybackStateCompat.ACTION_FAST_FORWARD or    // <-- add this
+                PlaybackStateCompat.ACTION_REWIND             // <-- and this
             )
             .setState(state, exoPlayer?.currentPosition ?: 0L, 1f)
             .build()

@@ -82,6 +82,30 @@ fun showMediaNotification(
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
+    val fastForwardIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+        action = NotificationActionReceiver.ACTION_FAST_FORWARD
+    }
+    val fastForwardAction = NotificationCompat.Action.Builder(
+        R.drawable.ic_fast_forward, "Forward",
+        PendingIntent.getBroadcast(
+            context, 5, fastForwardIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    ).build()
+
+    val rewindIntent = Intent(context, NotificationActionReceiver::class.java).apply {
+        action = NotificationActionReceiver.ACTION_REWIND
+    }
+
+    val rewindAction = NotificationCompat.Action.Builder(
+        R.drawable.ic_rewind, "Rewind",
+        PendingIntent.getBroadcast(
+            context, 6, rewindIntent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    ).build()
+
+
     val notification = NotificationCompat.Builder(context, "yt_music_playback_channel")
         .setContentTitle(title)
         .setSmallIcon(R.drawable.ic_music_note)
@@ -89,11 +113,13 @@ fun showMediaNotification(
         .setStyle(
             androidx.media.app.NotificationCompat.MediaStyle()
                 .setMediaSession(mediaSession.sessionToken)
-                .setShowActionsInCompactView(0, 1, 2)
+                .setShowActionsInCompactView(0, 1, 2, 3, 4)
         )
-        .addAction(prevAction)
-        .addAction(playPauseAction)
-        .addAction(nextAction)
+        .addAction(prevAction)          // 0
+        .addAction(rewindAction)        // 1
+        .addAction(playPauseAction)     // 2
+        .addAction(fastForwardAction)   // 3
+        .addAction(nextAction)          // 4
         .setDeleteIntent(deletePendingIntent)
         .setPriority(NotificationCompat.PRIORITY_LOW)
         .setOngoing(isPlaying)
