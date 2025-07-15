@@ -63,7 +63,8 @@ dependencies {
 
     implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.24.5")
     implementation(libs.okhttp)
-    implementation ("com.arthenica:ffmpeg-kit-full:6.0-2")
+//    implementation ("com.arthenica:ffmpeg-kit-full:6.0-2")
+    implementation("com.mrljdx:ffmpeg-kit-full:6.0")
 
     implementation("androidx.navigation:navigation-fragment-ktx:2.7.6")
     implementation("androidx.navigation:navigation-ui-ktx:2.7.6")
