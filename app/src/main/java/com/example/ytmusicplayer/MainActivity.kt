@@ -29,6 +29,7 @@ import com.example.ytmusicplayer.database.PlaylistDatabase
 import com.example.ytmusicplayer.databinding.ActivityMainBinding
 import com.example.ytmusicplayer.services.MediaPlaybackService
 import kotlinx.coroutines.launch
+import org.schabi.newpipe.extractor.NewPipe
 
 @UnstableApi
 class MainActivity : AppCompatActivity() {
@@ -39,6 +40,9 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
+
+        // Initialize NewPipe globally at app startup
+        NewPipe.init(DownloaderImpl())
 
         // ✅ 1. Initialize view binding first
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -111,8 +115,3 @@ class MainActivity : AppCompatActivity() {
         }
     }
 }
-
-
-
-
-

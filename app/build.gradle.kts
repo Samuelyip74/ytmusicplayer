@@ -61,9 +61,9 @@ dependencies {
     implementation (libs.hilt.android)
     ksp (libs.dagger.compiler)
 
-    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.24.5")
+    // Updated to a version that handles recent YouTube changes better
+    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.26.0")
     implementation(libs.okhttp)
-//    implementation ("com.arthenica:ffmpeg-kit-full:6.0-2")
     implementation("com.mrljdx:ffmpeg-kit-full:6.0")
 
     implementation("androidx.navigation:navigation-fragment-ktx:2.7.6")
@@ -74,7 +74,7 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation ("androidx.media:media:1.6.0")
     implementation("androidx.media3:media3-exoplayer:1.5.1")
-    implementation("androidx.media3:media3-ui:1.5.1") // Optional: if using PlayerView
+    implementation("androidx.media3:media3-ui:1.5.1")
 
 
     testImplementation(libs.junit)

@@ -6,10 +6,8 @@ import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.services.youtube.YoutubeService
 
 object StreamExtractorHelper {
-    suspend fun extractStreams(service: YoutubeService, url: String): StreamInfo = withContext(
-        Dispatchers.IO) {
-        val streamExtractor = service.getStreamExtractor(url)
-        streamExtractor.fetchPage()
-        StreamInfo.getInfo(streamExtractor)
-    }
+    suspend fun extractStreams(service: YoutubeService, url: String): StreamInfo =
+        withContext(Dispatchers.IO) {
+            StreamInfo.getInfo(service, url)
+        }
 }

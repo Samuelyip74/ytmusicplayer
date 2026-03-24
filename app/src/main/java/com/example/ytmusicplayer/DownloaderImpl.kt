@@ -8,12 +8,15 @@ import org.schabi.newpipe.extractor.downloader.Response
 import org.schabi.newpipe.extractor.downloader.Request as NewPipeRequest
 import org.schabi.newpipe.extractor.exceptions.ReCaptchaException
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 class DownloaderImpl : Downloader() {
 
     private val client = OkHttpClient.Builder()
         .followRedirects(true)
         .followSslRedirects(true)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
     override fun execute(request: NewPipeRequest): Response {
@@ -22,19 +25,20 @@ class DownloaderImpl : Downloader() {
                 .url(request.url())
                 .header("User-Agent", USER_AGENT)
                 .header("Accept-Language", "en-US,en;q=0.9")
-                .header("Accept", "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8")
+                .header("Cache-Control", "no-cache")
+
+            // Add headers from NewPipe request
+            request.headers().forEach { (name, values) ->
+                values.forEach { value ->
+                    builder.addHeader(name, value)
+                }
+            }
 
             val requestBody = request.dataToSend()
             if (requestBody != null && requestBody.isNotEmpty()) {
                 builder.post(requestBody.toRequestBody())
             } else {
                 builder.get()
-            }
-
-            request.headers().forEach { (name, values) ->
-                values.forEach { value ->
-                    builder.header(name, value)
-                }
             }
 
             client.newCall(builder.build()).execute().use { response ->
@@ -48,12 +52,13 @@ class DownloaderImpl : Downloader() {
                 )
             }
         } catch (e: IOException) {
+            // NewPipe expects ReCaptchaException for network failures to trigger retries/checks
             throw ReCaptchaException("Network Error: ${e.message}", request.url())
         }
     }
 
     companion object {
-        // Using the latest Chrome User-Agent ensures YouTube doesn't suspect automated requests.
+        // A modern, consistent User-Agent helps avoid bot detection "Reload" errors
         private const val USER_AGENT =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
                     "(KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"

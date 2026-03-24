@@ -4,13 +4,23 @@ import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Canvas
 import android.os.Bundle
-import android.view.*
-import android.widget.*
+import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ProgressBar
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.*
-import com.arthenica.ffmpegkit.*
+import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.FFmpegSession
+import com.arthenica.ffmpegkit.ReturnCode
 import com.example.ytmusicplayer.DownloaderImpl
 import com.example.ytmusicplayer.R
 import com.example.ytmusicplayer.StreamExtractorHelper
@@ -20,12 +30,18 @@ import com.example.ytmusicplayer.database.model.Playlist
 import com.example.ytmusicplayer.database.model.PlaylistItem
 import com.example.ytmusicplayer.database.model.YouTubeVideoItem
 import com.example.ytmusicplayer.services.YouTubeApi
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
-import java.io.*
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class SearchFragment : Fragment() {
@@ -48,11 +64,13 @@ class SearchFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setHasOptionsMenu(true) // ✅ enable ActionBar menu
+        setHasOptionsMenu(true)
     }
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
     ): View = inflater.inflate(R.layout.fragment_search, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -86,9 +104,7 @@ class SearchFragment : Fragment() {
                 return true
             }
 
-            override fun onQueryTextChange(newText: String?): Boolean {
-                return false
-            }
+            override fun onQueryTextChange(newText: String?): Boolean = false
         })
     }
 
@@ -107,14 +123,27 @@ class SearchFragment : Fragment() {
 
     private fun setupSwipeToAddToPlaylist() {
         val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.RIGHT) {
-            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, tgt: RecyclerView.ViewHolder) = false
+            override fun onMove(
+                rv: RecyclerView,
+                vh: RecyclerView.ViewHolder,
+                tgt: RecyclerView.ViewHolder
+            ) = false
+
             override fun onSwiped(vh: RecyclerView.ViewHolder, dir: Int) {
                 val video = searchResults[vh.adapterPosition]
                 showPlaylistSelection(video)
                 searchAdapter.notifyItemChanged(vh.adapterPosition)
             }
 
-            override fun onChildDraw(c: Canvas, rv: RecyclerView, vh: RecyclerView.ViewHolder, dX: Float, dY: Float, state: Int, isActive: Boolean) {
+            override fun onChildDraw(
+                c: Canvas,
+                rv: RecyclerView,
+                vh: RecyclerView.ViewHolder,
+                dX: Float,
+                dY: Float,
+                state: Int,
+                isActive: Boolean
+            ) {
                 super.onChildDraw(c, rv, vh, dX, dY, state, isActive)
             }
         })
@@ -178,7 +207,10 @@ class SearchFragment : Fragment() {
         val view = layoutInflater.inflate(R.layout.dialog_progress, null)
         progressBar = view.findViewById(R.id.progressBar)
         progressText = view.findViewById(R.id.progressText)
-        progressDialog = AlertDialog.Builder(requireContext()).setView(view).setCancelable(false).create()
+        progressDialog = AlertDialog.Builder(requireContext())
+            .setView(view)
+            .setCancelable(false)
+            .create()
         progressDialog?.show()
     }
 
@@ -187,56 +219,116 @@ class SearchFragment : Fragment() {
         progressText?.text = "Downloading... $percent%"
     }
 
+    private fun updateProgressText(text: String) {
+        progressText?.text = text
+    }
+
     private fun hideProgressDialog() {
         progressDialog?.dismiss()
         progressDialog = null
+    }
+
+    private suspend fun extractStreamInfoWithRetry(url: String) =
+        withContext(Dispatchers.IO) {
+            NewPipe.init(DownloaderImpl())
+
+            var lastError: Exception? = null
+
+            repeat(2) { attempt ->
+                try {
+                    return@withContext StreamExtractorHelper.extractStreams(ServiceList.YouTube, url)
+                } catch (e: Exception) {
+                    lastError = e
+                    if (attempt == 0) {
+                        delay(1200)
+                    }
+                }
+            }
+
+            throw lastError ?: Exception("Failed to extract stream info")
+        }
+
+    private fun sanitizeFileName(input: String): String {
+        return input
+            .replace(Regex("[\\\\/:*?\"<>|]"), "_")
+            .replace(Regex("\\s+"), "_")
+            .take(120)
+            .ifBlank { "yt_audio" }
     }
 
     private fun downloadAndSaveMp3(context: Context, url: String, onComplete: (String) -> Unit) {
         showProgressDialog()
 
         CoroutineScope(Dispatchers.IO).launch {
-            try {
-                NewPipe.init(DownloaderImpl())
-                val streamInfo = StreamExtractorHelper.extractStreams(ServiceList.YouTube, url)
-                val audioStream = streamInfo.videoStreams
-                    .filter { it.format?.mimeType?.contains("mp4") ?: false }
-                    .maxByOrNull { it.resolution } ?: throw Exception("No suitable stream")
+            var tempFile: File? = null
 
-                val audioUrl = audioStream.content
-                val suffix = audioStream.format?.getSuffix()
-                val title = streamInfo.name.replace("[^a-zA-Z0-9]".toRegex(), "_")
-                val tempFile = File(context.cacheDir, "$title.$suffix")
-                val outputFile = File(context.filesDir, "$title.mp3")
+            try {
+                withContext(Dispatchers.Main) {
+                    updateProgressText("Fetching stream info...")
+                }
+
+                val streamInfo = extractStreamInfoWithRetry(url)
+
+                val audioStream = streamInfo.audioStreams
+                    .filter { stream ->
+                        val mime = stream.format?.mimeType.orEmpty().lowercase()
+                        mime.contains("audio") || mime.contains("mp4") || mime.contains("webm")
+                    }
+                    .maxByOrNull { it.averageBitrate }
+
+                    ?: throw Exception("No suitable audio stream found")
+
+                val audioUrl = audioStream.content ?: throw Exception("Audio stream URL is missing")
+                val suffix = audioStream.format?.getSuffix() ?: "m4a"
+                val safeTitle = sanitizeFileName(streamInfo.name)
+
+                tempFile = File(context.cacheDir, "$safeTitle.$suffix")
+                val outputFile = File(context.filesDir, "$safeTitle.mp3")
 
                 val request = Request.Builder()
-                    .url(audioUrl!!)
+                    .url(audioUrl)
                     .header("User-Agent", "Mozilla/5.0")
                     .header("Referer", "https://www.youtube.com/")
                     .build()
 
                 client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) throw IOException("Download failed: ${response.code}")
+                    if (!response.isSuccessful) {
+                        throw IOException("Download failed: ${response.code}")
+                    }
+
                     val total = response.body?.contentLength() ?: -1
                     var downloaded = 0L
 
                     response.body?.byteStream()?.use { input ->
-                        FileOutputStream(tempFile).use { output ->
+                        FileOutputStream(tempFile!!).use { output ->
                             val buffer = ByteArray(8 * 1024)
                             var read: Int
                             while (input.read(buffer).also { read = it } != -1) {
                                 output.write(buffer, 0, read)
                                 downloaded += read
-                                val percent = if (total > 0) (downloaded * 100 / total).toInt() else 0
-                                withContext(Dispatchers.Main) { updateProgress(percent) }
+
+                                val percent = if (total > 0) {
+                                    (downloaded * 100 / total).toInt()
+                                } else {
+                                    0
+                                }
+
+                                withContext(Dispatchers.Main) {
+                                    updateProgress(percent)
+                                }
                             }
                         }
-                    }
+                    } ?: throw IOException("Empty response body")
                 }
 
-                val session: FFmpegSession = FFmpegKit.execute(
-                    "-y -i ${tempFile.absolutePath} -vn -ar 44100 -ac 2 -b:a 192k ${outputFile.absolutePath}"
-                )
+                withContext(Dispatchers.Main) {
+                    updateProgressText("Converting to MP3...")
+                }
+
+                val ffmpegCommand =
+                    "-y -i \"${tempFile!!.absolutePath}\" -vn -ar 44100 -ac 2 -b:a 192k \"${outputFile.absolutePath}\""
+
+                val session: FFmpegSession = FFmpegKit.execute(ffmpegCommand)
 
                 withContext(Dispatchers.Main) {
                     hideProgressDialog()
@@ -244,15 +336,26 @@ class SearchFragment : Fragment() {
                         Toast.makeText(context, "MP3 saved to app directory", Toast.LENGTH_SHORT).show()
                         onComplete(outputFile.absolutePath)
                     } else {
-                        Toast.makeText(context, "FFmpeg conversion failed", Toast.LENGTH_SHORT).show()
+                        val failStack = session.failStackTrace ?: "Unknown FFmpeg error"
+                        Toast.makeText(
+                            context,
+                            "FFmpeg conversion failed: $failStack",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
 
-                tempFile.delete()
+                tempFile?.delete()
             } catch (e: Exception) {
+                tempFile?.delete()
+
                 withContext(Dispatchers.Main) {
                     hideProgressDialog()
-                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        context,
+                        "Download error: ${e.message}",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
                 e.printStackTrace()
             }
