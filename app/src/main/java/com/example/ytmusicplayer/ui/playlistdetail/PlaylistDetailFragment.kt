@@ -18,6 +18,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.ui.PlayerView
+import androidx.core.view.isVisible
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.navOptions
@@ -43,13 +44,21 @@ class PlaylistDetailFragment : Fragment() {
     private lateinit var playlistTitle: TextView
     private lateinit var currentTrackTitle: TextView
     private lateinit var currentTrackImage: ImageView
-    private lateinit var buttonPlayPause: Button
-    private lateinit var buttonNext: Button
-    private lateinit var buttonPrev: Button
+    private lateinit var expandedNowPlayingContainer: View
+    private lateinit var collapsedNowPlayingContainer: View
+    private lateinit var collapsedTrackTitle: TextView
+    private lateinit var collapsedTrackImage: ImageView
+    private lateinit var collapsedButtonPlayPause: ImageButton
+    private lateinit var collapsedButtonNext: ImageButton
+    private lateinit var collapsedButtonPrev: ImageButton
+    private lateinit var buttonPlayPause: ImageButton
+    private lateinit var buttonNext: ImageButton
+    private lateinit var buttonPrev: ImageButton
 
     private var playlistId: Int = -1
     private var playlistName: String = ""
     private val items = mutableListOf<PlaylistItem>()
+    private var isMiniPlayerVisible = false
 
     private val playbackListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -81,6 +90,13 @@ class PlaylistDetailFragment : Fragment() {
         playlistTitle = view.findViewById(R.id.playlistTitle)
         currentTrackTitle = view.findViewById(R.id.currentTrackTitle)
         currentTrackImage = view.findViewById(R.id.currentTrackImage)
+        expandedNowPlayingContainer = view.findViewById(R.id.expandedNowPlayingContainer)
+        collapsedNowPlayingContainer = view.findViewById(R.id.collapsedNowPlayingContainer)
+        collapsedTrackTitle = view.findViewById(R.id.collapsedTrackTitle)
+        collapsedTrackImage = view.findViewById(R.id.collapsedTrackImage)
+        collapsedButtonPlayPause = view.findViewById(R.id.collapsedButtonPlayPause)
+        collapsedButtonNext = view.findViewById(R.id.collapsedButtonNext)
+        collapsedButtonPrev = view.findViewById(R.id.collapsedButtonPrev)
         buttonPlayPause = view.findViewById(R.id.buttonPlayPause)
         buttonNext = view.findViewById(R.id.buttonNext)
         buttonPrev = view.findViewById(R.id.buttonPrev)
@@ -95,11 +111,22 @@ class PlaylistDetailFragment : Fragment() {
 
         recyclerView.adapter = playlistItemAdapter
         recyclerView.layoutManager = LinearLayoutManager(requireContext())
+        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                updateNowPlayingCardState()
+            }
+        })
 
         playerView.player = PlaylistPlayerManager.getPlayer()
         buttonPlayPause.setOnClickListener { togglePlayPause() }
         buttonNext.setOnClickListener { skipToNext() }
         buttonPrev.setOnClickListener { skipToPrevious() }
+        collapsedButtonPlayPause.setOnClickListener { togglePlayPause() }
+        collapsedButtonNext.setOnClickListener { skipToNext() }
+        collapsedButtonPrev.setOnClickListener { skipToPrevious() }
+        collapsedNowPlayingContainer.setOnClickListener {
+            recyclerView.smoothScrollToPosition(0)
+        }
 
         PlaylistPlayerManager.addListener(playbackListener)
 
@@ -109,6 +136,68 @@ class PlaylistDetailFragment : Fragment() {
 
         setupItemTouchHelper()
         loadItems()
+        updateNowPlayingCardState()
+    }
+
+    private fun updateNowPlayingCardState() {
+        val collapseThresholdPx = (24 * resources.displayMetrics.density).toInt()
+        val shouldShowMiniPlayer = recyclerView.computeVerticalScrollOffset() > collapseThresholdPx
+
+        if (shouldShowMiniPlayer == isMiniPlayerVisible) {
+            return
+        }
+
+        isMiniPlayerVisible = shouldShowMiniPlayer
+
+        if (shouldShowMiniPlayer) {
+            showMiniPlayer()
+        } else {
+            showNowPlayingCard()
+        }
+    }
+
+    private fun showMiniPlayer() {
+        collapsedNowPlayingContainer.alpha = 0f
+        collapsedNowPlayingContainer.translationY = -collapsedNowPlayingContainer.height.coerceAtLeast(1).toFloat() / 3f
+        collapsedNowPlayingContainer.isVisible = true
+        collapsedNowPlayingContainer.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(160)
+            .start()
+
+        expandedNowPlayingContainer.animate()
+            .alpha(0f)
+            .translationY(-expandedNowPlayingContainer.height.coerceAtLeast(1).toFloat() / 6f)
+            .setDuration(160)
+            .withEndAction {
+                expandedNowPlayingContainer.isVisible = false
+                expandedNowPlayingContainer.alpha = 1f
+                expandedNowPlayingContainer.translationY = 0f
+            }
+            .start()
+    }
+
+    private fun showNowPlayingCard() {
+        expandedNowPlayingContainer.alpha = 0f
+        expandedNowPlayingContainer.translationY = -expandedNowPlayingContainer.height.coerceAtLeast(1).toFloat() / 6f
+        expandedNowPlayingContainer.isVisible = true
+        expandedNowPlayingContainer.animate()
+            .alpha(1f)
+            .translationY(0f)
+            .setDuration(160)
+            .start()
+
+        collapsedNowPlayingContainer.animate()
+            .alpha(0f)
+            .translationY(-collapsedNowPlayingContainer.height.coerceAtLeast(1).toFloat() / 3f)
+            .setDuration(160)
+            .withEndAction {
+                collapsedNowPlayingContainer.isVisible = false
+                collapsedNowPlayingContainer.alpha = 1f
+                collapsedNowPlayingContainer.translationY = 0f
+            }
+            .start()
     }
 
     private fun navigateToNextPlaylist() {
@@ -149,7 +238,9 @@ class PlaylistDetailFragment : Fragment() {
 
     private fun updatePlayPauseButton() {
         val isPlaying = PlaylistPlayerManager.getPlayer()?.isPlaying == true
-        buttonPlayPause.text = if (isPlaying) "⏸" else "▶"
+        val playPauseIcon = if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play
+        buttonPlayPause.setImageResource(playPauseIcon)
+        collapsedButtonPlayPause.setImageResource(playPauseIcon)
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -165,8 +256,18 @@ class PlaylistDetailFragment : Fragment() {
                 .filter { it.exists() }
 
             if (files.isNotEmpty()) {
+                val player = PlaylistPlayerManager.getPlayer()
+                val savedSession = PlaylistPlayerManager.getSavedPlaybackSession(requireContext())
+                val isCurrentPlaylistLoaded =
+                    PlaylistPlayerManager.currentPlaylistId == playlistId &&
+                        player != null &&
+                        player.mediaItemCount > 0 &&
+                        player.currentMediaItemIndex != C.INDEX_UNSET
+                val shouldWaitForRestore =
+                    savedSession?.playlistId == playlistId &&
+                        (player == null || player.mediaItemCount == 0)
 
-                if (PlaylistPlayerManager.getPlayer()?.isPlaying != true) {
+                if (!isCurrentPlaylistLoaded && !shouldWaitForRestore) {
                     PlaylistPlayerManager.playPlaylist(requireContext(), files, playlistId)
                 }
 
@@ -182,11 +283,16 @@ class PlaylistDetailFragment : Fragment() {
     }
 
     private fun playFromItem(selectedItem: PlaylistItem) {
-        val files = items.mapNotNull { it.downloadedFilePath }
-            .map { File(it) }
-            .filter { it.exists() }
+        val playableItems = items.mapNotNull { item ->
+            item.downloadedFilePath
+                ?.let(::File)
+                ?.takeIf { it.exists() }
+                ?.let { file -> item to file }
+        }
 
-        val startIndex = items.indexOfFirst { it.id == selectedItem.id }
+        val files = playableItems.map { it.second }
+        val startIndex = playableItems.indexOfFirst { (item, _) -> item.id == selectedItem.id }
+
         if (files.isNotEmpty() && startIndex >= 0) {
             PlaylistPlayerManager.playPlaylist(requireContext(), files, playlistId, startIndex)
             recyclerView.postDelayed({
@@ -194,6 +300,8 @@ class PlaylistDetailFragment : Fragment() {
                 updatePlayPauseButton()
                 updateNotificationBanner(context, playlistId)
             }, 300)
+        } else {
+            Toast.makeText(requireContext(), "This song is not available for playback.", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -306,6 +414,7 @@ class PlaylistDetailFragment : Fragment() {
                 ?.replace("_", " ")
 
         currentTrackTitle.text = "Now Playing: ${title ?: "-"}"
+        collapsedTrackTitle.text = title ?: "-"
 
         val filePath = mediaItem.localConfiguration?.uri?.path
         val matchedItem = items.find {
@@ -320,8 +429,14 @@ class PlaylistDetailFragment : Fragment() {
                 .load(thumbnailUrl)
                 .error(R.drawable.ic_music_placeholder)
                 .into(currentTrackImage)
+
+            Glide.with(requireContext())
+                .load(thumbnailUrl)
+                .error(R.drawable.ic_music_placeholder)
+                .into(collapsedTrackImage)
         } else {
             currentTrackImage.setImageResource(R.drawable.ic_music_placeholder)
+            collapsedTrackImage.setImageResource(R.drawable.ic_music_placeholder)
         }
     }
 
@@ -355,7 +470,7 @@ class PlaylistDetailFragment : Fragment() {
 
     private fun setupItemTouchHelper() {
         val itemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(
-            ItemTouchHelper.UP or ItemTouchHelper.DOWN, ItemTouchHelper.LEFT
+            ItemTouchHelper.UP or ItemTouchHelper.DOWN, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT
         ) {
             override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, target: RecyclerView.ViewHolder): Boolean {
                 val from = vh.adapterPosition
@@ -370,36 +485,10 @@ class PlaylistDetailFragment : Fragment() {
             override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) {
                 val position = vh.adapterPosition
                 val item = items[position]
-                val currentPath = PlaylistPlayerManager.getPlayer()?.currentMediaItem?.localConfiguration?.uri?.path
-
-                if (item.downloadedFilePath == currentPath) {
-                    Toast.makeText(requireContext(), "Can't delete currently playing song", Toast.LENGTH_SHORT).show()
-                    playlistItemAdapter.notifyItemChanged(position)
-                    return
+                when (direction) {
+                    ItemTouchHelper.LEFT -> handleDeleteSwipe(item, position)
+                    ItemTouchHelper.RIGHT -> showMoveToPlaylistDialog(item, position)
                 }
-
-                items.removeAt(position)
-                playlistItemAdapter.notifyItemRemoved(position)
-
-                Snackbar.make(requireView(), "Removed \"${item.title}\"", Snackbar.LENGTH_LONG)
-                    .setAction("UNDO") {
-                        items.add(position, item)
-                        playlistItemAdapter.notifyItemInserted(position)
-                    }
-                    .addCallback(object : Snackbar.Callback() {
-                        override fun onDismissed(snackbar: Snackbar?, event: Int) {
-                            if (event != DISMISS_EVENT_ACTION) {
-                                lifecycleScope.launch {
-                                    val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
-                                    dao.deletePlaylistItem(item)
-                                    item.downloadedFilePath?.let { path ->
-                                        File(path).takeIf { it.exists() }?.delete()
-                                    }
-                                }
-                            }
-                        }
-                    })
-                    .show()
             }
 
             override fun onChildDraw(c: Canvas, rv: RecyclerView, vh: RecyclerView.ViewHolder, dX: Float, dY: Float, state: Int, isActive: Boolean) {
@@ -418,6 +507,22 @@ class PlaylistDetailFragment : Fragment() {
                         it.setBounds(left, top, right, bottom)
                         it.draw(c)
                     }
+                } else if (state == ItemTouchHelper.ACTION_STATE_SWIPE && dX > 0) {
+                    val itemView = vh.itemView
+                    val background = ColorDrawable(Color.parseColor("#2e7d32"))
+                    background.setBounds(itemView.left, itemView.top, itemView.left + dX.toInt(), itemView.bottom)
+                    background.draw(c)
+
+                    val label = "Move"
+                    val paint = android.graphics.Paint().apply {
+                        color = Color.WHITE
+                        textSize = 40f
+                        isAntiAlias = true
+                        textAlign = android.graphics.Paint.Align.LEFT
+                    }
+                    val textX = itemView.left + 48f
+                    val textY = itemView.top + (itemView.height / 2f) - ((paint.descent() + paint.ascent()) / 2f)
+                    c.drawText(label, textX, textY, paint)
                 }
                 super.onChildDraw(c, rv, vh, dX, dY, state, isActive)
             }
@@ -425,13 +530,138 @@ class PlaylistDetailFragment : Fragment() {
         itemTouchHelper.attachToRecyclerView(recyclerView)
     }
 
+    private fun handleDeleteSwipe(item: PlaylistItem, position: Int) {
+        if (isCurrentlyPlayingItem(item)) {
+            Toast.makeText(requireContext(), "Can't delete currently playing song", Toast.LENGTH_SHORT).show()
+            playlistItemAdapter.notifyItemChanged(position)
+            return
+        }
+
+        items.removeAt(position)
+        playlistItemAdapter.notifyItemRemoved(position)
+
+        Snackbar.make(requireView(), "Removed \"${item.title}\"", Snackbar.LENGTH_LONG)
+            .setAction("UNDO") {
+                items.add(position, item)
+                playlistItemAdapter.notifyItemInserted(position)
+            }
+            .addCallback(object : Snackbar.Callback() {
+                override fun onDismissed(snackbar: Snackbar?, event: Int) {
+                    if (event != DISMISS_EVENT_ACTION) {
+                        lifecycleScope.launch {
+                            val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
+                            dao.deletePlaylistItem(item)
+                            item.downloadedFilePath?.let { path ->
+                                File(path).takeIf { it.exists() }?.delete()
+                            }
+                            persistVisiblePlaylistOrder(dao)
+                        }
+                    }
+                }
+            })
+            .show()
+    }
+
+    private fun showMoveToPlaylistDialog(item: PlaylistItem, position: Int) {
+        if (isCurrentlyPlayingItem(item)) {
+            Toast.makeText(requireContext(), "Can't move currently playing song", Toast.LENGTH_SHORT).show()
+            playlistItemAdapter.notifyItemChanged(position)
+            return
+        }
+
+        lifecycleScope.launch {
+            val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
+            val targetPlaylists = dao.getAllPlaylists()
+                .filter { it.id != playlistId }
+                .sortedBy { it.position }
+
+            if (targetPlaylists.isEmpty()) {
+                Toast.makeText(requireContext(), "No other playlists found", Toast.LENGTH_SHORT).show()
+                playlistItemAdapter.notifyItemChanged(position)
+                return@launch
+            }
+
+            val names = targetPlaylists.map { it.name }.toTypedArray()
+            var handled = false
+
+            AlertDialog.Builder(requireContext())
+                .setTitle("Move to Playlist")
+                .setItems(names) { dialog, index ->
+                    handled = true
+                    lifecycleScope.launch {
+                        moveItemToPlaylist(item, position, targetPlaylists[index].id, targetPlaylists[index].name)
+                    }
+                    dialog.dismiss()
+                }
+                .setNegativeButton("Cancel", null)
+                .setOnDismissListener {
+                    if (!handled && position < items.size) {
+                        playlistItemAdapter.notifyItemChanged(position)
+                    }
+                }
+                .show()
+        }
+    }
+
+    private suspend fun moveItemToPlaylist(
+        item: PlaylistItem,
+        position: Int,
+        targetPlaylistId: Int,
+        targetPlaylistName: String
+    ) {
+        val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
+        val existingTargetItem = dao.getPlaylistItem(targetPlaylistId, item.videoId)
+
+        if (existingTargetItem != null) {
+            playlistItemAdapter.notifyItemChanged(position)
+            Toast.makeText(
+                requireContext(),
+                "\"${item.title}\" is already in $targetPlaylistName",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        val movedItem = item.copy(
+            playlistId = targetPlaylistId,
+            position = dao.getNextPlaylistItemPosition(targetPlaylistId)
+        )
+
+        dao.updatePlaylistItem(movedItem)
+
+        items.removeAt(position)
+        playlistItemAdapter.notifyItemRemoved(position)
+        persistVisiblePlaylistOrder(dao)
+
+        Toast.makeText(
+            requireContext(),
+            "Moved to $targetPlaylistName",
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun isCurrentlyPlayingItem(item: PlaylistItem): Boolean {
+        val currentMediaItem = PlaylistPlayerManager.getPlayer()?.currentMediaItem ?: return false
+        val currentItemId = currentMediaItem.mediaId.toIntOrNull()
+        if (currentItemId != null) {
+            return currentItemId == item.id
+        }
+
+        val currentPath = currentMediaItem.localConfiguration?.uri?.path ?: return false
+        return item.downloadedFilePath?.let { currentPath.endsWith(File(it).name) } == true
+    }
+
     private fun persistItemOrder() {
         lifecycleScope.launch {
             val dao = PlaylistDatabase.getDatabase(requireContext()).playlistDao()
-            items.forEachIndexed { index, item ->
-                item.position = index
-                dao.updatePlaylistItem(item)
-            }
+            persistVisiblePlaylistOrder(dao)
+        }
+    }
+
+    private suspend fun persistVisiblePlaylistOrder(dao: com.example.ytmusicplayer.database.dao.PlaylistDao) {
+        items.forEachIndexed { index, item ->
+            item.position = index
+            dao.updatePlaylistItem(item)
         }
     }
 

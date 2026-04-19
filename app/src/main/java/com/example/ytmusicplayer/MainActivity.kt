@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import androidx.core.os.bundleOf
 import androidx.lifecycle.lifecycleScope
 import androidx.media.session.MediaButtonReceiver
 import androidx.media3.common.util.Log
@@ -22,6 +23,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 
 import androidx.navigation.findNavController
+import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
@@ -33,6 +35,11 @@ import org.schabi.newpipe.extractor.NewPipe
 
 @UnstableApi
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        const val SHARE_TO_SEARCH_REQUEST = "share_to_search_request"
+        const val SHARE_QUERY_KEY = "share_query"
+    }
 
     private lateinit var binding: ActivityMainBinding
     private var mediaSession: MediaSessionCompat? = null
@@ -55,8 +62,8 @@ class MainActivity : AppCompatActivity() {
         PlaylistPlayerManager.initialize(this)
 
         // Start background media service
-        val intent = Intent(this, MediaPlaybackService::class.java)
-        ContextCompat.startForegroundService(this, intent)
+        val serviceIntent = Intent(this, MediaPlaybackService::class.java)
+        ContextCompat.startForegroundService(this, serviceIntent)
 
         // ✅ 3. Navigation setup
         val navController = findNavController(R.id.nav_host_fragment_activity_main)
@@ -68,7 +75,7 @@ class MainActivity : AppCompatActivity() {
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
 
-        handleIntent()
+        handleIntent(intent)
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -96,13 +103,18 @@ class MainActivity : AppCompatActivity() {
         mediaSession?.setMediaButtonReceiver(null)
     }
 
-    private fun handleIntent(){
-        val playlistId = intent?.getIntExtra("playlistId", -1) ?: -1
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(sourceIntent: Intent?) {
+        val playlistId = sourceIntent?.getIntExtra("playlistId", -1) ?: -1
         if (playlistId != -1) {
-            // Fetch playlist name from DB if needed
             lifecycleScope.launch {
                 val dao = PlaylistDatabase.getDatabase(this@MainActivity).playlistDao()
-                val playlist = dao.getAllPlaylists().find { it.id == playlistId }
+                val playlist = dao.getPlaylistById(playlistId)
                 playlist?.let {
                     val bundle = Bundle().apply {
                         putInt("playlistId", it.id)
@@ -112,6 +124,53 @@ class MainActivity : AppCompatActivity() {
                         .navigate(R.id.playlistDetailFragment, bundle)
                 }
             }
+            return
+        }
+
+        extractSharedQuery(sourceIntent)?.let { sharedQuery ->
+            val navController = findNavController(R.id.nav_host_fragment_activity_main)
+            binding.navView.selectedItemId = R.id.navigation_search
+            if (navController.currentDestination?.id != R.id.navigation_search) {
+                navController.navigate(R.id.navigation_search)
+            }
+            val navHostFragment =
+                supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main) as? NavHostFragment
+            navHostFragment?.childFragmentManager?.setFragmentResult(
+                SHARE_TO_SEARCH_REQUEST,
+                bundleOf(SHARE_QUERY_KEY to sharedQuery)
+            )
+            sourceIntent?.removeExtra(Intent.EXTRA_TEXT)
+            sourceIntent?.action = null
+            return
+        }
+
+        restoreLastPlayedPlaylist()
+    }
+
+    private fun extractSharedQuery(sourceIntent: Intent?): String? {
+        if (sourceIntent?.action != Intent.ACTION_SEND) return null
+        if (sourceIntent.type != "text/plain") return null
+
+        return sourceIntent.getStringExtra(Intent.EXTRA_TEXT)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+    }
+
+    private fun restoreLastPlayedPlaylist() {
+        val savedSession = PlaylistPlayerManager.getSavedPlaybackSession(this) ?: return
+        val navController = findNavController(R.id.nav_host_fragment_activity_main)
+        if (navController.currentDestination?.id == R.id.playlistDetailFragment) return
+
+        lifecycleScope.launch {
+            val dao = PlaylistDatabase.getDatabase(this@MainActivity).playlistDao()
+            val playlist = dao.getPlaylistById(savedSession.playlistId) ?: return@launch
+
+            binding.navView.selectedItemId = R.id.navigation_playlists
+            val bundle = Bundle().apply {
+                putInt("playlistId", playlist.id)
+                putString("playlistName", playlist.name)
+            }
+            navController.navigate(R.id.playlistDetailFragment, bundle)
         }
     }
 }

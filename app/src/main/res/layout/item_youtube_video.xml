@@ -5,11 +5,29 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
-    <ImageView
-        android:id="@+id/videoThumbnail"
+    <FrameLayout
         android:layout_width="120dp"
-        android:layout_height="90dp"
-        android:scaleType="centerCrop"/>
+        android:layout_height="90dp">
+
+        <ImageView
+            android:id="@+id/videoThumbnail"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop" />
+
+        <ProgressBar
+            android:id="@+id/downloadProgressBar"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_gravity="bottom"
+            android:indeterminate="false"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="#4CAF50"
+            android:progressBackgroundTint="#55000000"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <LinearLayout
         android:orientation="vertical"

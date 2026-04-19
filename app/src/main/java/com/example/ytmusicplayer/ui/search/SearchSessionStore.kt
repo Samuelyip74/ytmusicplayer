@@ -1,9 +1,8 @@
 package com.example.ytmusicplayer.ui.search
 
-import androidx.lifecycle.ViewModel
 import com.example.ytmusicplayer.database.model.YouTubeVideoItem
 
-class SearchViewModel : ViewModel() {
+object SearchSessionStore {
     var currentQuery: String = ""
     var results: List<YouTubeVideoItem> = emptyList()
     val activeDownloads: LinkedHashMap<String, YouTubeVideoItem> = linkedMapOf()
