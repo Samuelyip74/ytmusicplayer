@@ -291,18 +291,10 @@ class SearchFragment : Fragment() {
             try {
                 val url = "https://www.youtube.com/watch?v=${video.id.videoId}"
                 val streamInfo = extractStreamInfoWithRetry(url)
-                val audioStream = streamInfo.audioStreams
-                    .filter { stream ->
-                        val mime = stream.format?.mimeType.orEmpty().lowercase()
-                        mime.contains("audio") || mime.contains("mp4") || mime.contains("webm")
-                    }
-                    .maxByOrNull { it.averageBitrate }
-                    ?: throw Exception("No suitable audio stream found")
-
-                val audioUrl = audioStream.content ?: throw Exception("Audio stream URL is missing")
+                val audioSource = StreamExtractorHelper.selectAudioSource(streamInfo)
                 PlaylistPlayerManager.playStream(
                     requireContext(),
-                    streamUrl = audioUrl,
+                    streamUrl = audioSource.url,
                     title = video.snippet.title,
                     artist = video.snippet.channelTitle
                 )

@@ -136,23 +136,14 @@ class YouTubeDownloadService : Service() {
             broadcastProgress(videoId, STATUS_STARTED, 0, true)
             val streamInfo = extractStreamInfoWithRetry(url)
 
-            val audioStream = streamInfo.audioStreams
-                .filter { stream ->
-                    val mime = stream.format?.mimeType.orEmpty().lowercase()
-                    mime.contains("audio") || mime.contains("mp4") || mime.contains("webm")
-                }
-                .maxByOrNull { it.averageBitrate }
-                ?: throw Exception("No suitable audio stream found")
-
-            val audioUrl = audioStream.content ?: throw Exception("Audio stream URL is missing")
-            val suffix = audioStream.format?.getSuffix() ?: "m4a"
+            val audioSource = StreamExtractorHelper.selectAudioSource(streamInfo)
             val safeTitle = sanitizeFileName(streamInfo.name.orEmpty().ifBlank { title })
 
-            tempFile = File(cacheDir, "$safeTitle.$suffix")
+            tempFile = File(cacheDir, "$safeTitle.${audioSource.suffix}")
             val outputFile = File(filesDir, "$safeTitle.mp3")
 
             val request = Request.Builder()
-                .url(audioUrl)
+                .url(audioSource.url)
                 .header("User-Agent", "Mozilla/5.0")
                 .header("Referer", "https://www.youtube.com/")
                 .build()
